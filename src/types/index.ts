@@ -12,6 +12,7 @@ export interface Project {
     updatedAt: string; // ISO date
     stats: ProjectStats;
     settings: ProjectSettings;
+    excludedRaw?: string[]; // Array of raw filenames to exclude
 }
 
 export interface AugmentationSettings {

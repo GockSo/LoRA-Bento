@@ -20,6 +20,9 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
     });
 
     const [manifestItems, setManifestItems] = useState<any[]>([]);
+    const [excludedRaw, setExcludedRaw] = useState<string[]>([]);
+    const [filter, setFilter] = useState<'all' | 'raw' | 'augmented' | 'excluded'>('all');
+    const [isClearing, setIsClearing] = useState(false);
 
     // Load Manifest
     useEffect(() => {
@@ -33,9 +36,64 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
             if (res.ok) {
                 const data = await res.json();
                 setManifestItems(data.items || []);
+                setExcludedRaw(data.excludedRaw || []);
             }
         } catch (e) {
             console.error('Failed to load manifest', e);
+        }
+    };
+
+    const handleClearAll = async () => {
+        if (!confirm('Are you sure? This will delete ALL augmented and processed images. Raw images are safe.')) return;
+
+        setIsClearing(true);
+        try {
+            await fetch(`/api/projects/${projectId}/augmented/clear`, {
+                method: 'POST',
+                body: JSON.stringify({ clearDownstream: true })
+            });
+            await fetchManifest();
+            router.refresh();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to clear');
+        } finally {
+            setIsClearing(false);
+        }
+    };
+
+    const toggleExclude = async (file: string, currentlyExcluded: boolean) => {
+        const newStatus = !currentlyExcluded;
+        // Optimistic update
+        if (newStatus) setExcludedRaw([...excludedRaw, file]);
+        else setExcludedRaw(excludedRaw.filter(f => f !== file));
+
+        try {
+            await fetch(`/api/projects/${projectId}/images/exclude`, {
+                method: 'POST',
+                body: JSON.stringify({ file, excluded: newStatus })
+            });
+            await fetchManifest(); // Refresh to clean up derived items
+            router.refresh();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to update exclusion');
+            fetchManifest(); // Revert
+        }
+    };
+
+    const deleteAugmentedItem = async (itemId: string) => {
+        if (!confirm('Delete this augmented image?')) return;
+        try {
+            await fetch(`/api/projects/${projectId}/augmented/delete`, {
+                method: 'POST',
+                body: JSON.stringify({ itemId })
+            });
+            setManifestItems(prev => prev.filter(i => i.id !== itemId));
+            router.refresh();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to delete');
         }
     };
 
@@ -149,6 +207,28 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
         return 0;
     });
 
+    // Filtering Logic
+    const filteredItems = sortedDisplayItems.filter(item => {
+        // Ephemeral items are always shown if augment is running
+        if (item.isEphemeral) return filter === 'all' || filter === 'augmented';
+
+        const isRaw = item.stage === 'raw';
+        const isExcluded = isRaw && excludedRaw.includes(item.displayName);
+
+        if (filter === 'excluded') {
+            return isExcluded;
+        }
+
+        // If not viewing excluded tab, hide excluded items by default
+        if (isExcluded) return false;
+
+        if (filter === 'all') return true;
+        if (filter === 'raw') return isRaw;
+        if (filter === 'augmented') return !isRaw;
+
+        return true;
+    });
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-120px)]">
             <div className="lg:col-span-1 space-y-6 overflow-y-auto pr-2">
@@ -228,15 +308,46 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                                 </>
                             )}
                         </Button>
+
+                        <Button
+                            variant="destructive"
+                            className="w-full"
+                            onClick={handleClearAll}
+                            disabled={jobStatus === 'running' || isClearing}
+                        >
+                            {isClearing ? 'Clearing...' : 'Clear Augmented Images'}
+                        </Button>
                     </div>
                 </Card>
             </div>
 
             <div className="lg:col-span-2 space-y-4 flex flex-col h-full overflow-hidden">
                 <div className="flex items-center justify-between shrink-0">
-                    <h2 className="text-lg font-semibold">
-                        Preview Gallery ({sortedDisplayItems.length})
-                    </h2>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold">
+                            Preview Gallery ({filteredItems.length})
+                        </h2>
+                        {jobStatus === 'running' && (
+                            <span className="text-sm text-muted-foreground animate-pulse">
+                                Processing...
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex gap-2">
+                        {(['all', 'raw', 'augmented', 'excluded'] as const).map(f => (
+                            <Button
+                                key={f}
+                                variant={filter === f ? 'default' : 'secondary'}
+                                size="sm"
+                                onClick={() => setFilter(f)}
+                                className="capitalize"
+                            >
+                                {f}
+                            </Button>
+                        ))}
+                    </div>
                     {jobStatus === 'running' && (
                         <span className="text-sm text-muted-foreground animate-pulse">
                             Processing...
@@ -246,8 +357,8 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
 
                 <div className="flex-1 overflow-y-auto min-h-0 pr-2">
                     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
-                        {sortedDisplayItems.length > 0 ? (
-                            sortedDisplayItems.map((item: any, idx: number) => (
+                        {filteredItems.length > 0 ? (
+                            filteredItems.map((item: any, idx: number) => (
                                 <Card key={item.id + idx} className={`overflow-hidden group relative ${item.stage === 'raw' ? 'bg-background border-dashed' : 'bg-muted/20'} ${item.isEphemeral ? 'animate-in fade-in zoom-in-95 duration-300' : ''}`}>
                                     <div className="aspect-square relative bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHUlEQVQ4jWNgYGAQIyP7BwH8FOMWAgPDqIGBQQwADsMEx5M/t1EAAAAASUVORK5CYII=')] bg-repeat">
                                         {item.error ? (
@@ -263,18 +374,42 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                                                 loading="lazy"
                                             />
                                         )}
-                                        {item.stage === 'raw' && (
-                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 text-[10px] font-mono border rounded-sm shadow-sm">
-                                                RAW
-                                            </div>
-                                        )}
-                                        {item.stage === 'augmented' && (
-                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded-sm shadow-sm">
-                                                AUG
-                                            </div>
+                                    </div>
+                                    {item.stage === 'raw' && (
+                                        <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 text-[10px] font-mono border rounded-sm shadow-sm">
+                                            RAW
+                                        </div>
+                                    )}
+                                    {item.stage === 'augmented' && (
+                                        <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded-sm shadow-sm">
+                                            AUG
+                                        </div>
+                                    )}
+
+                                    {/* Hover Actions */}
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                        {item.stage === 'raw' ? (
+                                            <Button
+                                                size="sm"
+                                                variant={filter === 'excluded' ? "default" : "destructive"}
+                                                className="h-8 text-xs"
+                                                onClick={() => toggleExclude(item.displayName, filter === 'excluded')}
+                                            >
+                                                {filter === 'excluded' ? 'Restore' : 'Exclude'}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                className="h-8 text-xs"
+                                                onClick={() => deleteAugmentedItem(item.id)}
+                                            >
+                                                Delete
+                                            </Button>
                                         )}
                                     </div>
-                                    <div className="p-2 space-y-1 bg-background/90 text-[10px] border-t">
+
+                                    <div className="p-2 space-y-1 bg-background/90 text-[10px] border-t relative z-10">
                                         {item.stage === 'augmented' ? (
                                             <div className="flex gap-1 flex-wrap">
                                                 {item.aug?.rotate !== 0 && (
