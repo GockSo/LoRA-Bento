@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { spawn } from 'child_process';
 import { updateProjectStats, updateProject } from '@/lib/projects';
+import { getManifest } from '@/lib/manifest';
 
 const JOB_FILE = 'caption_job.json';
 
@@ -34,24 +35,52 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const metadataPath = path.join(projectDir, 'captions.json');
         const jobPath = path.join(projectDir, JOB_FILE);
 
-        // Check if processed images exist
-        const files = await fs.readdir(processedDir).catch(() => []);
-        if (files.length === 0) {
-            return NextResponse.json({ error: 'No processed images to caption. Please complete Step 3 first.' }, { status: 400 });
+        // Source Discovery logic
+        const manifest = await getManifest(id);
+        const allItems = manifest.items || [];
+        const includedItems = allItems.filter(item => !item.excluded);
+
+        const rawCount = includedItems.filter(item => item.stage === 'raw').length;
+        const augCount = includedItems.filter(item => item.stage === 'augmented').length;
+        const totalCount = includedItems.length;
+        const excludedCount = allItems.length - totalCount;
+
+        // Determine input source (prefer processed if not empty)
+        const processedFiles = await fs.readdir(processedDir).catch(() => []);
+        const processedImages = processedFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+
+        let targetDir = processedDir;
+        let sourceStage: 'processed' | 'raw+aug' = 'processed';
+
+        if (processedImages.length === 0) {
+            // Fallback to raw+aug is not ideal but supported as per requirements
+            // However, the script processes ONE dir. If we have raw + aug dispersed, we usually expect them in processed.
+            // If processed is empty, we tell user to run Step 3 (Resize/Process).
+            return NextResponse.json({ error: 'No processed images to caption. Please complete Step 4 first.' }, { status: 400 });
         }
 
         // Save settings
         await updateProject(id, { settings: { captionModel: model, triggerWord } as any });
 
-        // Initialize Job
-        const initialJob = { status: 'starting', progress: 0, total: files.length, current: 0 };
+        // Initialize Job with breakdown
+        const initialJob = {
+            status: 'starting',
+            progress: 0,
+            total: totalCount,
+            current: 0,
+            rawCount,
+            augCount,
+            totalCount,
+            excludedCount,
+            sourceStage
+        };
         await fs.writeFile(jobPath, JSON.stringify(initialJob, null, 2));
 
         // Spawn Background Process
         const scriptPath = path.join(process.cwd(), 'scripts', 'caption.py');
         const pythonProcess = spawn('python', [
             scriptPath,
-            '--image_dir', processedDir,
+            '--image_dir', targetDir,
             '--metadata_out', metadataPath,
             '--model', model
         ]);
@@ -168,7 +197,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     await fs.writeFile(jobPath, JSON.stringify({
                         status: 'completed',
                         progress: 100,
-                        total: files.length,
+                        total: totalCount,
+                        rawCount,
+                        augCount,
+                        totalCount,
+                        excludedCount,
+                        sourceStage,
                         summary: {
                             mode,
                             topItems,

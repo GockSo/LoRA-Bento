@@ -26,6 +26,12 @@ interface JobStatus {
         uniqueCount: number;
         samples?: string[];
     };
+    // Breakdown stats
+    rawCount?: number;
+    augCount?: number;
+    totalCount?: number;
+    excludedCount?: number;
+    sourceStage?: 'processed' | 'raw+aug';
     // Legacy support
     tagStats?: TagStat[];
     totalUniqueTags?: number;
@@ -217,13 +223,34 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
 
                     <div className="flex flex-col justify-end space-y-4">
                         {isRunning && (
-                            <div className="space-y-2 rounded-lg border bg-muted/50 p-4">
-                                <div className="flex justify-between text-sm">
-                                    <span>Processing...</span>
-                                    <span className="font-mono">{job.progress} / {job.total}</span>
+                            <div className="space-y-3 rounded-lg border bg-muted/50 p-4">
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-sm font-medium">
+                                        <span>Captioning in progress...</span>
+                                        <span className="font-mono">{job.progress} / {job.totalCount ?? job.total}</span>
+                                    </div>
+                                    <Progress value={progressPercent} />
                                 </div>
-                                <Progress value={progressPercent} />
-                                <p className="text-xs text-muted-foreground truncate">{job.current_file || 'Initializing...'}</p>
+
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground border-t pt-2">
+                                    {job.sourceStage && (
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-semibold uppercase text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">Source</span>
+                                            <span>{job.sourceStage}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-1">
+                                        <span className="font-semibold uppercase text-[10px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">Breakdown</span>
+                                        <span>
+                                            {job.rawCount ?? 0} raw + {job.augCount ?? 0} aug
+                                            {job.excludedCount ? ` (${job.excludedCount} excluded)` : ''}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <p className="text-[10px] text-muted-foreground truncate italic opacity-70">
+                                    Current: {job.current_file || 'Initializing...'}
+                                </p>
                             </div>
                         )}
 
@@ -243,6 +270,28 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
 
             {job.status === 'completed' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
+                    {/* Completion Summary */}
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-emerald-100 dark:bg-emerald-900/50 p-2 rounded-full text-emerald-600 dark:text-emerald-400">
+                                <Tag className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Captioning Complete</h3>
+                                <p className="text-sm text-emerald-700/80 dark:text-emerald-400/80">
+                                    Captioned {job.totalCount ?? job.total} images successfully
+                                    ({job.rawCount ?? 0} raw, {job.augCount ?? 0} augmented)
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => router.refresh()}>
+                                <RefreshCcw className="mr-2 h-4 w-4" />
+                                Refresh
+                            </Button>
+                        </div>
+                    </div>
+
                     {/* Stats Section */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
