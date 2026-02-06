@@ -20,13 +20,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </CardHeader>
             <CardContent className="flex-1">
                 <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                        <Images className="h-4 w-4" />
-                        <span>{project.stats.raw} Raw</span>
+                    <div className="flex justify-between">
+                        <span>Total Images</span>
+                        <span className="font-medium">{project.stats.total}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Layers className="h-4 w-4" />
-                        <span>{project.stats.processed} Ready</span>
+                    <div className="flex justify-between">
+                        <span>Total Images</span>
+                        <span className="font-medium">{project.stats.total}</span>
                     </div>
                     <div className="flex items-center gap-2 col-span-2">
                         <FileText className="h-4 w-4" />

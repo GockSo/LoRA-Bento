@@ -128,3 +128,23 @@ export async function augmentImage(
 
     await pipeline.toFile(outputPath);
 }
+
+export function getRandomAugmentationParams(settings: {
+    rotationRandom: boolean;
+    rotationRange: [number, number];
+    flipRandom: boolean;
+}) {
+    let rotate = 0;
+    let flipH = false;
+
+    if (settings.rotationRandom) {
+        const [min, max] = settings.rotationRange;
+        rotate = Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    if (settings.flipRandom) {
+        flipH = Math.random() < 0.5;
+    }
+
+    return { rotate, flipH };
+}

@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { Project, ProjectSettings } from '@/types';
+import { Project, ProjectSettings, ProjectStats } from '@/types';
 
 const PROJECTS_DIR = path.join(process.cwd(), 'projects');
 
@@ -35,6 +35,31 @@ export async function getProjects(): Promise<Project[]> {
     return projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
+export async function getProjectStats(projectId: string): Promise<ProjectStats> {
+    const projectDir = path.join(PROJECTS_DIR, projectId);
+
+    const countFiles = async (dir: string) => {
+        try {
+            const files = await fs.readdir(dir);
+            return files.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f)).length;
+        } catch { return 0; }
+    };
+
+    const countTxt = async (dir: string) => {
+        try {
+            const files = await fs.readdir(dir);
+            return files.filter(f => f.endsWith('.txt')).length;
+        } catch { return 0; }
+    };
+
+    return {
+        total: await countFiles(path.join(projectDir, 'raw')),
+        augmented: await countFiles(path.join(projectDir, 'augmented')),
+        processed: await countFiles(path.join(projectDir, 'processed')),
+        captions: await countTxt(path.join(projectDir, 'processed'))
+    };
+}
+
 export async function getProject(id: string): Promise<Project | null> {
     try {
         const configPath = path.join(PROJECTS_DIR, id, 'config.json');
@@ -57,6 +82,7 @@ export async function createProject(name: string): Promise<Project> {
     const initialSettings: ProjectSettings = {
         targetSize: 512,
         padMode: 'transparent',
+        padColor: '#000000'
     };
 
     const project: Project = {
@@ -65,7 +91,7 @@ export async function createProject(name: string): Promise<Project> {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         stats: {
-            raw: 0,
+            total: 0,
             augmented: 0,
             processed: 0,
             captions: 0
@@ -109,7 +135,7 @@ export async function updateProjectStats(id: string) {
 
     await updateProject(id, {
         stats: {
-            raw: rawFiles.length,
+            total: rawFiles.length,
             augmented: augmentedFiles.length,
             processed: processedImages.length,
             captions: captionFiles.length

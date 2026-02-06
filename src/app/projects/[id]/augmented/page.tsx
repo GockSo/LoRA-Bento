@@ -1,58 +1,32 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { Button, Card, Input } from '@/components/ui/core';
+import { Button, Card, Switch } from '@/components/ui/core';
 import { Label } from '@/components/ui/label';
 import { Loader2, Wand2, RefreshCcw, Image as ImageIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-// Assuming getProject is a utility function that needs to be imported
-// import { getProject } from '@/lib/data'; // Placeholder for actual import path
 
 export default function AugmentationPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    // const project = await getProject(id); // Uncomment and import getProject if needed
-
-    // if (!project) return <div>Project not found</div>; // Uncomment if project check is needed
-
-    const [settings, setSettings] = useState({
-        rotate: 0,
-        flipH: false,
-        zoom: 1,
-    });
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [processing, setProcessing] = useState(false);
-    const projectId = id; // Changed from params.id to id
+    const projectId = id;
     const router = useRouter();
 
-    // Load initial preview
-    useEffect(() => {
-        updatePreview();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [settings]); // Debounce?
+    const [settings, setSettings] = useState({
+        rotationRandom: false,
+        rotationRange: [-35, 35] as [number, number],
+        flipRandom: false,
+        // Legacy support if needed, or remove
+        zoom: 1
+    });
 
-    const updatePreview = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(`/api/projects/${projectId}/preview`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ settings }),
-            });
-            if (res.ok) {
-                const blob = await res.blob();
-                if (previewUrl) URL.revokeObjectURL(previewUrl);
-                setPreviewUrl(URL.createObjectURL(blob));
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const [jobId, setJobId] = useState<string | null>(null);
+    const [jobStatus, setJobStatus] = useState<'idle' | 'running' | 'completed'>('idle');
+    const [progress, setProgress] = useState({ processed: 0, total: 0 });
+    const [results, setResults] = useState<any[]>([]);
 
     const runAugmentation = async () => {
-        setProcessing(true);
+        setJobStatus('running');
+        setResults([]);
         try {
             const res = await fetch(`/api/projects/${projectId}/augment`, {
                 method: 'POST',
@@ -61,79 +35,119 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
             });
 
             if (res.ok) {
-                // Poll or just show message
-                alert('Augmentation started! Check the sidebar for progress.');
-                router.refresh();
+                const data = await res.json();
+                setJobId(data.jobId);
+            } else {
+                alert('Failed to start job');
+                setJobStatus('idle');
             }
         } catch (e) {
-            alert('Failed to start augmentation');
-        } finally {
-            setProcessing(false);
+            console.error(e);
+            alert('Failed to start job');
+            setJobStatus('idle');
         }
     };
+
+    // Poll Job
+    useEffect(() => {
+        if (!jobId || jobStatus === 'completed') return;
+
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/projects/${projectId}/jobs/${jobId}`);
+                if (res.ok) {
+                    const job = await res.json();
+                    setProgress(job.progress);
+                    setResults(job.results || []);
+                    if (job.status === 'completed') {
+                        setJobStatus('completed');
+                        router.refresh(); // Update sidebar counts
+                    }
+                }
+            } catch (e) {
+                console.error('Poll error', e);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [jobId, jobStatus, projectId, router]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold">Augmentation</h1>
-                    <p className="text-muted-foreground">Adjust settings to generate variations.</p>
+                    <p className="text-muted-foreground">Randomize dataset to improve training generalization.</p>
                 </div>
 
                 <Card className="p-6 space-y-6">
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Rotation ({settings.rotate}°)</label>
-                            <input
-                                type="range" min="-15" max="15" step="1"
-                                value={settings.rotate}
-                                onChange={(e) => setSettings({ ...settings, rotate: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                            />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>-15°</span>
-                                <span>0°</span>
-                                <span>+15°</span>
+                    <div className="space-y-6">
+                        {/* Rotation Settings */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-base">Random Rotation</Label>
+                                <Switch
+                                    checked={settings.rotationRandom}
+                                    onCheckedChange={(c) => setSettings({ ...settings, rotationRandom: c })}
+                                />
                             </div>
+
+                            {settings.rotationRandom && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs text-muted-foreground">Min Degrees</Label>
+                                        <input
+                                            type="number"
+                                            value={settings.rotationRange[0]}
+                                            onChange={(e) => setSettings({
+                                                ...settings,
+                                                rotationRange: [parseInt(e.target.value), settings.rotationRange[1]]
+                                            })}
+                                            className="w-full text-sm p-2 bg-secondary rounded-md"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs text-muted-foreground">Max Degrees</Label>
+                                        <input
+                                            type="number"
+                                            value={settings.rotationRange[1]}
+                                            onChange={(e) => setSettings({
+                                                ...settings,
+                                                rotationRange: [settings.rotationRange[0], parseInt(e.target.value)]
+                                            })}
+                                            className="w-full text-sm p-2 bg-secondary rounded-md"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Zoom ({settings.zoom}x)</label>
-                            <input
-                                type="range" min="1" max="1.5" step="0.05"
-                                value={settings.zoom}
-                                onChange={(e) => setSettings({ ...settings, zoom: parseFloat(e.target.value) })}
-                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
+                        {/* Flip Settings */}
+                        <div className="flex items-center justify-between pt-4 border-t">
+                            <Label className="text-base">Random Horizontal Flip</Label>
+                            <Switch
+                                checked={settings.flipRandom}
+                                onCheckedChange={(c) => setSettings({ ...settings, flipRandom: c })}
                             />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>1x</span>
-                                <span>1.5x</span>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                id="flipH"
-                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                checked={settings.flipH}
-                                onChange={(e) => setSettings({ ...settings, flipH: e.target.checked })}
-                            />
-                            <label htmlFor="flipH" className="text-sm font-medium">Horizontal Flip</label>
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t">
-                        <Button className="w-full" onClick={runAugmentation} disabled={processing}>
-                            {processing ? (
+                    <div className="pt-6 border-t mt-6">
+                        <Button
+                            className="w-full"
+                            size="lg"
+                            onClick={runAugmentation}
+                            disabled={jobStatus === 'running'}
+                        >
+                            {jobStatus === 'running' ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Processing...
+                                    Running... ({progress.processed}/{progress.total})
                                 </>
                             ) : (
                                 <>
                                     <Wand2 className="mr-2 h-4 w-4" />
-                                    Run Augmentation
+                                    {jobStatus === 'completed' ? 'Re-Run Augmentation' : 'Confirm & Run'}
                                 </>
                             )}
                         </Button>
@@ -141,27 +155,65 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                 </Card>
             </div>
 
-            <div className="lg:col-span-2">
-                <Card className="h-full min-h-[400px] flex items-center justify-center bg-muted/20 relative overflow-hidden">
-                    {loading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10 transition-opacity">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        </div>
+            <div className="lg:col-span-2 space-y-6">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Results Preview</h2>
+                    {jobStatus === 'running' && (
+                        <span className="text-sm text-muted-foreground animate-pulse">
+                            Processing {progress.processed} of {progress.total}...
+                        </span>
                     )}
-                    {previewUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={previewUrl}
-                            alt="Preview"
-                            className="max-h-[500px] max-w-full object-contain shadow-lg rounded-md"
-                        />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+                    {results.length > 0 ? (
+                        results.map((res: any, idx: number) => (
+                            <Card key={idx} className="overflow-hidden group relative bg-muted/20">
+                                <div className="aspect-square relative">
+                                    {res.error ? (
+                                        <div className="absolute inset-0 flex items-center justify-center text-destructive p-4 text-center text-xs">
+                                            {res.error}
+                                        </div>
+                                    ) : (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={res.url}
+                                            alt={res.file}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    )}
+                                </div>
+                                <div className="p-2 space-y-1 bg-background/90 text-[10px] border-t">
+                                    <div className="flex gap-1 flex-wrap">
+                                        {res.angle !== 0 && (
+                                            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
+                                                Rot: {res.angle}°
+                                            </span>
+                                        )}
+                                        {res.flipped && (
+                                            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
+                                                Flip: Yes
+                                            </span>
+                                        )}
+                                        {res.angle === 0 && !res.flipped && !res.error && (
+                                            <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded-sm">
+                                                No Change
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="truncate text-muted-foreground max-w-full">
+                                        {res.file}
+                                    </div>
+                                </div>
+                            </Card>
+                        ))
                     ) : (
-                        <div className="flex flex-col items-center text-muted-foreground">
-                            <ImageIcon className="h-10 w-10 mb-2" />
-                            <p>No preview available</p>
+                        <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                            {jobStatus === 'idle' ? 'Ready to augment.' : 'Waiting for results...'}
                         </div>
                     )}
-                </Card>
+                </div>
             </div>
         </div>
     );

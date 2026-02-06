@@ -28,7 +28,8 @@ async function testProcessing() {
         const out1 = path.join(TEST_DIR, 'out1.png');
         await processImage(inputPath, out1, {
             targetSize: 512,
-            padMode: 'transparent'
+            padMode: 'transparent',
+            padColor: '#000000'
         });
 
         const meta1 = await sharp(out1).metadata();
@@ -40,12 +41,22 @@ async function testProcessing() {
         // Test 2: Solid Color Pad
         const out2 = path.join(TEST_DIR, 'out2.png');
         await processImage(inputPath, out2, {
-            targetSize: 512,
+            targetSize: 768,
             padMode: 'solid',
-            padColor: '#00FF00'
+            padColor: '#ff0000' // Red padding
         });
         // We can't easily check pixel color without elaborate logic, but if it ran and size is correct...
         console.log('Test 2 Passed: Solid Pad (Runtime check)');
+
+        // Test 3: Blur Pad
+        const out3 = path.join(TEST_DIR, 'out3.png');
+        await processImage(inputPath, out3, {
+            targetSize: 512,
+            padMode: 'blur',
+            padColor: '#000000'
+        });
+        // We can't easily check pixel color without elaborate logic, but if it ran and size is correct...
+        console.log('Test 3 Passed: Blur Pad (Runtime check)');
 
         // Cleanup
         // await fs.rm(TEST_DIR, { recursive: true });

@@ -1,23 +1,34 @@
+export interface ProjectStats {
+    total: number;
+    augmented: number;
+    processed: number;
+    captions: number;
+}
+
 export interface Project {
     id: string;
     name: string;
     createdAt: string; // ISO date
     updatedAt: string; // ISO date
-    stats: {
-        raw: number;
-        augmented: number;
-        processed: number;
-        captions: number;
-    };
+    stats: ProjectStats;
     settings: ProjectSettings;
+}
+
+export interface AugmentationSettings {
+    rotationRandom: boolean;
+    rotationRange: [number, number]; // [min, max]
+    flipRandom: boolean;
+    // Legacy/Base support
+    zoom?: number;
 }
 
 export interface ProjectSettings {
     targetSize: number; // 512, 768, etc.
     padMode: 'transparent' | 'solid' | 'blur';
-    padColor?: string; // Hex code if solid
+    padColor: string; // Hex code if solid
     captionModel?: 'wd14' | 'blip';
     triggerWord?: string;
+    augmentation?: AugmentationSettings;
 }
 
 export interface ImageFile {

@@ -10,7 +10,8 @@ import {
     Type,
     BarChart, // Changed from barChart
     ArrowRight,
-    ChevronRight
+    ChevronRight,
+    CheckCircle
 } from 'lucide-react';
 import { Project } from '@/types';
 import { Button } from '@/components/ui/core';
@@ -63,9 +64,9 @@ export function StepsSidebar({ project }: StepsSidebarProps) {
 
             <div className="p-4 border-t bg-muted/20">
                 <div className="space-y-2 text-xs text-muted-foreground">
-                    <div className="flex justify-between">
-                        <span>Raw Images</span>
-                        <span className="font-mono">{project.stats.raw}</span>
+                    <div className="text-xs text-muted-foreground mt-1 flex justify-between">
+                        <span>{project.stats.total} images</span>
+                        {project.stats.total > 0 && <CheckCircle className="h-3 w-3 text-green-500" />}
                     </div>
                     <div className="flex justify-between">
                         <span>Processed</span>
