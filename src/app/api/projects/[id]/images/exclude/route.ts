@@ -15,6 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         const projectDir = path.join(process.cwd(), 'projects', id);
         const project = await getProject(id);
+        if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
         // 1. Update Project State
         let excludedRaw = project.excludedRaw || [];

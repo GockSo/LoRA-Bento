@@ -84,6 +84,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             console.error(`[Caption ${id} ERR] ${data}`);
         });
 
+        const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'it', 'that', 'this']);
+
         pythonProcess.on('close', async (code) => {
             console.log(`Captioning finished for ${id} with code ${code}`);
 
@@ -92,20 +94,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     // Convert metadata.json to individual .txt files
                     const captionsData = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
 
-                    // Stats aggregation
-                    const tagCounts: Record<string, number> = {};
+                    // Determine mode and aggregate
+                    let mode: 'tags' | 'sentence' = 'tags';
+                    const counts: Record<string, number> = {};
+                    const samples: string[] = [];
+                    const allCaptions: string[] = [];
+
+                    // Heuristic to detect mode from first entry
+                    const firstKey = Object.keys(captionsData)[0];
+                    if (firstKey) {
+                        const firstEntry = captionsData[firstKey];
+                        if (firstEntry && typeof firstEntry === 'object' && 'caption' in firstEntry) {
+                            mode = 'sentence';
+                        }
+                    }
 
                     for (const [filename, data] of Object.entries(captionsData)) {
                         let text = '';
-                        if (data && typeof data === 'object' && 'tags' in data) {
-                            text = data.tags as string;
-                            // Aggregate tags
-                            text.split(',').forEach(t => {
-                                const tag = t.trim();
-                                if (tag) tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-                            });
-                        } else if (data && typeof data === 'object' && 'caption' in data) {
-                            text = data.caption as string;
+                        if (data && typeof data === 'object') {
+                            if ('tags' in data && mode === 'tags') {
+                                text = data.tags as string;
+                                // Aggregate tags
+                                text.split(',').forEach(t => {
+                                    const tag = t.trim();
+                                    if (tag) counts[tag] = (counts[tag] || 0) + 1;
+                                });
+                            } else if ('caption' in data) {
+                                // Even if mode was defaulted to tags, if we find captions, treat as text source for file
+                                text = data.caption as string;
+                                if (mode === 'sentence') {
+                                    allCaptions.push(text);
+                                    // Keyword extractions
+                                    const words = text.toLowerCase()
+                                        .replace(/[^\w\s]/g, '') // remove punctuation
+                                        .split(/\s+/);
+
+                                    words.forEach(w => {
+                                        if (w.length > 2 && !STOPWORDS.has(w)) {
+                                            counts[w] = (counts[w] || 0) + 1;
+                                        }
+                                    });
+                                }
+                            }
                         }
 
                         if (triggerWord) {
@@ -116,18 +146,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         await fs.writeFile(txtPath, text);
                     }
 
-                    // Sort and transform stats
-                    const sortedTags = Object.entries(tagCounts)
-                        .map(([tag, count]) => ({ tag, count }))
+                    // Prepare Summary Data
+                    const topItems = Object.entries(counts)
+                        .map(([text, count]) => ({ text, count }))
                         .sort((a, b) => b.count - a.count)
-                        .slice(0, 20); // Top 20
+                        .slice(0, 50);
+
+                    // Pick samples for sentence mode
+                    if (mode === 'sentence' && allCaptions.length > 0) {
+                        for (let i = 0; i < Math.min(5, allCaptions.length); i++) {
+                            const randomIndex = Math.floor(Math.random() * allCaptions.length);
+                            samples.push(allCaptions[randomIndex]);
+                        }
+                    }
+
+                    const uniqueCount = Object.keys(counts).length;
 
                     await updateProjectStats(id);
+
+                    // Final Job Update
                     await fs.writeFile(jobPath, JSON.stringify({
                         status: 'completed',
                         progress: 100,
                         total: files.length,
-                        tagStats: sortedTags
+                        summary: {
+                            mode,
+                            topItems,
+                            uniqueCount,
+                            samples: samples.length > 0 ? samples : undefined
+                        }
                     }, null, 2));
 
                 } catch (e) {
