@@ -18,9 +18,7 @@ export interface Project {
 export interface AugmentationSettings {
     rotationRandom: boolean;
     rotationRange: [number, number]; // [min, max]
-    rotationRange: [number, number]; // [min, max]
     flipEnabled: boolean;
-    // Legacy/Base support
     // Legacy/Base support
     zoom?: number;
 }
@@ -50,6 +48,15 @@ export interface ManifestItem {
     path: string; // Absolute path
     displayName: string;
     groupKey: string; // raw filename
+    originalName?: string;
+    groupId?: number;
+    hash?: string;
+    blurScore?: number;
+    flags?: {
+        isDuplicate?: boolean;
+        isBlurry?: boolean;
+    };
+    excluded?: boolean;
     aug?: {
         rotate: number;
         flip: boolean;

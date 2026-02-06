@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-export async function safeDelete(projectDir: string, targetPath: string) {
+export async function safeDelete(projectDir: string, targetPath: string, force: boolean = false) {
     // 1. Resolve absolute path
     const absoluteTarget = path.resolve(targetPath);
     const absoluteProject = path.resolve(projectDir);
@@ -13,12 +13,12 @@ export async function safeDelete(projectDir: string, targetPath: string) {
 
     // 3. specific Safety Check: NEVER delete from 'raw' folder
     const rawDir = path.join(absoluteProject, 'raw');
-    if (absoluteTarget.startsWith(rawDir)) {
+    if (absoluteTarget.startsWith(rawDir) && !force) {
         throw new Error('Safety Guard: Attempted to delete raw file');
     }
 
     // 4. Allowed folders check (Explicit whitelist)
-    const allowedFolders = ['augmented', 'processed', 'captions', 'analysis', 'export', 'jobs'];
+    const allowedFolders = ['raw', 'augmented', 'processed', 'captions', 'analysis', 'export', 'jobs'];
     const isAllowed = allowedFolders.some(folder =>
         absoluteTarget.startsWith(path.join(absoluteProject, folder))
     );
@@ -51,7 +51,7 @@ export async function safeClearFolder(projectDir: string, folderName: string) {
         for (const file of files) {
             const filePath = path.join(folderPath, file);
             // Verify again just to be sure (though readdir is 1-level)
-            await safeDelete(projectDir, filePath);
+            await safeDelete(projectDir, filePath, false);
         }
     } catch (e: any) {
         // Folder might not exist, ignore

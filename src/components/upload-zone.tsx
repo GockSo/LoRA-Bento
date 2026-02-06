@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils';
 
 interface UploadZoneProps {
     projectId: string;
+    onUploadComplete?: () => void;
 }
 
-export function UploadZone({ projectId }: UploadZoneProps) {
+export function UploadZone({ projectId, onUploadComplete }: UploadZoneProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const router = useRouter();
@@ -70,6 +71,9 @@ export function UploadZone({ projectId }: UploadZoneProps) {
 
             if (!res.ok) throw new Error('Upload failed');
 
+            if (onUploadComplete) {
+                onUploadComplete();
+            }
             router.refresh();
         } catch (error) {
             console.error(error);
