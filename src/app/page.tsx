@@ -1,6 +1,7 @@
 import { MainNav } from '@/components/layout/main-nav';
 import { ProjectCard } from '@/components/project-card';
 import { NewProjectDialog } from '@/components/new-project-dialog';
+import { ImportProjectButton } from '@/components/import-project-button';
 import { getProjects } from '@/lib/projects';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,10 @@ export default async function DashboardPage() {
               Manage your LoRA training datasets.
             </p>
           </div>
-          <NewProjectDialog />
+          <div className="flex items-center gap-2">
+            <ImportProjectButton />
+            <NewProjectDialog />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

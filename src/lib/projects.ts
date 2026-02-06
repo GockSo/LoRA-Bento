@@ -2,6 +2,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { Project, ProjectSettings, ProjectStats } from '@/types';
+import AdmZip from 'adm-zip';
+
+
 
 const PROJECTS_DIR = path.join(process.cwd(), 'projects');
 
@@ -141,4 +144,80 @@ export async function updateProjectStats(id: string) {
             captions: captionFiles.length
         }
     });
+}
+
+export async function renameProject(id: string, newName: string): Promise<Project> {
+    return updateProject(id, { name: newName });
+}
+
+export async function deleteProject(id: string): Promise<void> {
+    const projectDir = path.join(PROJECTS_DIR, id);
+    // Recursive delete
+    await fs.rm(projectDir, { recursive: true, force: true });
+}
+
+export async function exportProjectZip(id: string): Promise<Buffer> {
+    const project = await getProject(id);
+    if (!project) throw new Error('Project not found');
+
+    const projectDir = path.join(PROJECTS_DIR, id);
+    const zip = new AdmZip();
+
+    // Add local folder to zip
+    // 2nd arg is zipPath in archive. We want contents to be at root or under a folder? 
+    // Usually portable zips might have a root folder, but for simple import/export often root contents are easier.
+    // Let's stick effectively to "contents of project folder"
+    zip.addLocalFolder(projectDir);
+
+    return zip.toBuffer();
+}
+
+export async function importProjectZip(zipBuffer: Buffer): Promise<Project> {
+    await ensureDir(PROJECTS_DIR); // Ensure projects dir exists
+
+    // We need to inspect the zip before extracting to determine ID / validity
+    const zip = new AdmZip(zipBuffer);
+    const zipEntries = zip.getEntries();
+
+    // Validate: look for config.json
+    const configEntry = zipEntries.find(entry => entry.entryName === 'config.json' || entry.entryName.endsWith('/config.json'));
+
+    if (!configEntry) {
+        throw new Error('Invalid project zip: config.json not found');
+    }
+
+    // Read config to extract ID (or generate new one if we want to avoid collisions, but user asked for "restore" or "import")
+    // "either keep original projectId if no collision or generate new projectId"
+    // Let's read the config first.
+    const configContent = configEntry.getData().toString('utf8');
+    let projectConfig: Project;
+    try {
+        projectConfig = JSON.parse(configContent);
+    } catch {
+        throw new Error('Invalid project zip: malformed config.json');
+    }
+
+    // Check availability
+    let finalId = projectConfig.id;
+    let existing = await getProject(finalId);
+
+    // If collision, generate new ID
+    if (existing) {
+        finalId = uuidv4();
+        projectConfig.id = finalId;
+        // We might need to rewrite other ID refs if they existed, but for now ID is mainly in config.
+    }
+
+    const projectDir = path.join(PROJECTS_DIR, finalId);
+    await ensureDir(projectDir);
+
+    // Extract all
+    zip.extractAllTo(projectDir, true);
+
+    // If we changed ID, we must update the config.json on disk
+    if (finalId !== JSON.parse(configContent).id) {
+        await fs.writeFile(path.join(projectDir, 'config.json'), JSON.stringify(projectConfig, null, 2));
+    }
+
+    return projectConfig;
 }
