@@ -19,6 +19,26 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
         zoom: 1
     });
 
+    const [manifestItems, setManifestItems] = useState<any[]>([]);
+
+    // Load Manifest
+    useEffect(() => {
+        fetchManifest();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [projectId]);
+
+    const fetchManifest = async () => {
+        try {
+            const res = await fetch(`/api/projects/${projectId}/manifest`);
+            if (res.ok) {
+                const data = await res.json();
+                setManifestItems(data.items || []);
+            }
+        } catch (e) {
+            console.error('Failed to load manifest', e);
+        }
+    };
+
     const [jobId, setJobId] = useState<string | null>(null);
     const [jobStatus, setJobStatus] = useState<'idle' | 'running' | 'completed'>('idle');
     const [progress, setProgress] = useState({ processed: 0, total: 0 });
@@ -26,7 +46,18 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
 
     const runAugmentation = async () => {
         setJobStatus('running');
-        setResults([]);
+        // keep old results? or clear?
+        // Actually, for combined view, we might want to just show the manifest as is + placeholders?
+        // But user wants "populates as job runs".
+        // Strategy: We have manifestItems (persistent).
+        // Job returns `results` (ephemeral).
+        // We can just concatenate them for display? 
+        // Or efficient way: 
+        // 1. Initial State: Manifest Items.
+        // 2. Job Running: Manifest Items + Job Results (filtered to avoid dupes if any).
+        // 3. Job Done: Fetch Manifest (which now contains everything).
+        setResults([]); // Clear ephemeral results
+
         try {
             const res = await fetch(`/api/projects/${projectId}/augment`, {
                 method: 'POST',
@@ -61,6 +92,8 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                     setResults(job.results || []);
                     if (job.status === 'completed') {
                         setJobStatus('completed');
+                        await fetchManifest(); // Reload full manifest
+                        setResults([]); // Clear ephemeral
                         router.refresh(); // Update sidebar counts
                     }
                 }
@@ -72,9 +105,53 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
         return () => clearInterval(interval);
     }, [jobId, jobStatus, projectId, router]);
 
+    // Combine Manifest + Ephemeral Results for View
+    // BUT we want to enforce adjacency.
+    // If job is running, we have Raw items (in manifest) and Aug items (in results).
+    // We should try to interleave them if possible for the preview.
+    // Simplifying for now: Just show Manifest, then append Results?
+    // User requested "Combined gallery (Raw + Augmented) ... Raw 1.png instantly followed by 2.png".
+    // This requires sorting logic on the client side if we strictly want live interleaving.
+
+    // Let's build a unified list for rendering.
+    const displayItems = [...manifestItems];
+
+    // If running, merge results into displayItems
+    if (jobStatus === 'running' && results.length > 0) {
+        // Transform result to match manifest shape roughly for sorting
+        const ephemeralItems = results.map(r => ({
+            id: r.file, // temp id
+            stage: 'augmented',
+            src: r.url,
+            displayName: r.file,
+            groupKey: r.file.replace('aug_', ''), // Extract raw name from aug_filename?
+            aug: { rotate: r.angle, flip: r.flipped },
+            isEphemeral: true
+        }));
+
+        displayItems.push(...ephemeralItems);
+    }
+
+    // Sort displayItems by groupKey then stage
+    const sortedDisplayItems = displayItems.sort((a, b) => {
+        // Hacky groupKey extraction if missing (results might not have it perfectly set)
+        const keyA = a.groupKey || a.displayName.replace('aug_', '');
+        const keyB = b.groupKey || b.displayName.replace('aug_', '');
+
+        if (keyA < keyB) return -1;
+        if (keyA > keyB) return 1;
+
+        // Stage: Raw < Augmented
+        // Ephemeral items are 'augmented'.
+        if (a.stage === 'raw' && b.stage !== 'raw') return -1;
+        if (a.stage !== 'raw' && b.stage === 'raw') return 1;
+
+        return 0;
+    });
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-120px)]">
+            <div className="lg:col-span-1 space-y-6 overflow-y-auto pr-2">
                 <div>
                     <h1 className="text-2xl font-bold">Augmentation</h1>
                     <p className="text-muted-foreground">Randomize dataset to improve training generalization.</p>
@@ -155,64 +232,84 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                 </Card>
             </div>
 
-            <div className="lg:col-span-2 space-y-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold">Results Preview</h2>
+            <div className="lg:col-span-2 space-y-4 flex flex-col h-full overflow-hidden">
+                <div className="flex items-center justify-between shrink-0">
+                    <h2 className="text-lg font-semibold">
+                        Preview Gallery ({sortedDisplayItems.length})
+                    </h2>
                     {jobStatus === 'running' && (
                         <span className="text-sm text-muted-foreground animate-pulse">
-                            Processing {progress.processed} of {progress.total}...
+                            Processing...
                         </span>
                     )}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-                    {results.length > 0 ? (
-                        results.map((res: any, idx: number) => (
-                            <Card key={idx} className="overflow-hidden group relative bg-muted/20">
-                                <div className="aspect-square relative">
-                                    {res.error ? (
-                                        <div className="absolute inset-0 flex items-center justify-center text-destructive p-4 text-center text-xs">
-                                            {res.error}
+                <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
+                        {sortedDisplayItems.length > 0 ? (
+                            sortedDisplayItems.map((item: any, idx: number) => (
+                                <Card key={item.id + idx} className={`overflow-hidden group relative ${item.stage === 'raw' ? 'bg-background border-dashed' : 'bg-muted/20'} ${item.isEphemeral ? 'animate-in fade-in zoom-in-95 duration-300' : ''}`}>
+                                    <div className="aspect-square relative">
+                                        {item.error ? (
+                                            <div className="absolute inset-0 flex items-center justify-center text-destructive p-4 text-center text-xs">
+                                                {item.error}
+                                            </div>
+                                        ) : (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={item.src}
+                                                alt={item.displayName}
+                                                className={`w-full h-full object-contain p-2 ${item.stage === 'raw' ? 'opacity-80' : ''}`}
+                                                loading="lazy"
+                                            />
+                                        )}
+                                        {item.stage === 'raw' && (
+                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 text-[10px] font-mono border rounded-sm shadow-sm">
+                                                RAW
+                                            </div>
+                                        )}
+                                        {item.stage === 'augmented' && (
+                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded-sm shadow-sm">
+                                                AUG
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-2 space-y-1 bg-background/90 text-[10px] border-t">
+                                        {item.stage === 'augmented' ? (
+                                            <div className="flex gap-1 flex-wrap">
+                                                {item.aug?.rotate !== 0 && (
+                                                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
+                                                        Rot: {item.aug?.rotate}°
+                                                    </span>
+                                                )}
+                                                {item.aug?.flip && (
+                                                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
+                                                        Flip: Yes
+                                                    </span>
+                                                )}
+                                                {item.aug?.rotate === 0 && !item.aug?.flip && !item.error && (
+                                                    <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded-sm">
+                                                        No Change
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="h-[21px] flex items-center">
+                                                <span className="text-muted-foreground">Original Source</span>
+                                            </div>
+                                        )}
+                                        <div className="truncate text-muted-foreground max-w-full" title={item.displayName}>
+                                            {item.displayName}
                                         </div>
-                                    ) : (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={res.url}
-                                            alt={res.file}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                        />
-                                    )}
-                                </div>
-                                <div className="p-2 space-y-1 bg-background/90 text-[10px] border-t">
-                                    <div className="flex gap-1 flex-wrap">
-                                        {res.angle !== 0 && (
-                                            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
-                                                Rot: {res.angle}°
-                                            </span>
-                                        )}
-                                        {res.flipped && (
-                                            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
-                                                Flip: Yes
-                                            </span>
-                                        )}
-                                        {res.angle === 0 && !res.flipped && !res.error && (
-                                            <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded-sm">
-                                                No Change
-                                            </span>
-                                        )}
                                     </div>
-                                    <div className="truncate text-muted-foreground max-w-full">
-                                        {res.file}
-                                    </div>
-                                </div>
-                            </Card>
-                        ))
-                    ) : (
-                        <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-lg">
-                            {jobStatus === 'idle' ? 'Ready to augment.' : 'Waiting for results...'}
-                        </div>
-                    )}
+                                </Card>
+                            ))
+                        ) : (
+                            <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                                {jobStatus === 'idle' ? 'No images found. Import some raw images first.' : 'Waiting for results...'}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

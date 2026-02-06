@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 import { processImage } from '@/lib/images';
-import { updateProject, updateProjectStats, getProject } from '@/lib/projects';
+import { updateProject, updateProjectStats } from '@/lib/projects';
+import { getManifest, sortManifestItems } from '@/lib/manifest'; // Use manifest
+import { v4 as uuidv4 } from 'uuid';
 import { ProjectSettings } from '@/types';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +12,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const body = await req.json();
         const { settings } = body;
         const { id } = await params;
-        // settings: { targetSize: 512, padMode: 'transparent', padColor: '#000000' }
 
         if (!settings.targetSize) {
             return NextResponse.json({ error: 'Target size required' }, { status: 400 });
@@ -20,63 +21,97 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         await updateProject(id, { settings: { ...settings } });
 
         const projectDir = path.join(process.cwd(), 'projects', id);
-
-        // Source: use augmented folder if it has images, otherwise raw
-        // Logic: if user skipped augmentation, source is raw. If user did augmentation, source is augmented.
-        // BUT, user might want to process raw even if augmented folder exists? 
-        // Usually standard flow is Raw -> Augmented -> Processed.
-        // Let's check augmented count.
-
-        // Better logic: Source from 'augmented' if not empty, else 'raw'.
-        const rawDir = path.join(projectDir, 'raw');
-        const augDir = path.join(projectDir, 'augmented');
         const processedDir = path.join(projectDir, 'processed');
+        const jobsDir = path.join(projectDir, 'jobs');
 
-        const augFiles = await fs.readdir(augDir).catch(() => []);
-        const rawFiles = await fs.readdir(rawDir).catch(() => []);
+        await fs.mkdir(processedDir, { recursive: true });
+        await fs.mkdir(jobsDir, { recursive: true });
 
-        const useAugmented = augFiles.length > 0;
-        const sourceDir = useAugmented ? augDir : rawDir;
-        const sourceFiles = useAugmented ? augFiles : rawFiles;
+        // Source: Use Manifest Items (Raw + Aug)
+        const manifest = await getManifest(id);
+        const itemsToProcess = manifest.items; // All items: Raw + Aug
 
-        const imageFiles = sourceFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
-
-        if (imageFiles.length === 0) {
-            return NextResponse.json({ error: 'No source images found' }, { status: 400 });
+        if (itemsToProcess.length === 0) {
+            return NextResponse.json({ error: 'No items to process' }, { status: 400 });
         }
 
-        // Clear processed dir?
-        try {
-            const oldFiles = await fs.readdir(processedDir);
-            for (const f of oldFiles) {
-                await fs.unlink(path.join(processedDir, f));
-            }
-        } catch { }
+        // Create Job
+        const jobId = uuidv4();
+        const jobPath = path.join(jobsDir, `${jobId}.json`);
+
+        // Initial result state map: { [itemId: string]: { status: 'pending' | 'processing' | 'done', processedPath?: string } }
+        const itemStates: Record<string, any> = {};
+        itemsToProcess.forEach(item => {
+            itemStates[item.id] = { status: 'pending' };
+        });
+
+        const initialJobState = {
+            id: jobId,
+            status: 'running',
+            progress: { processed: 0, total: itemsToProcess.length },
+            results: itemStates // Granular tracking map
+        };
+
+        await fs.writeFile(jobPath, JSON.stringify(initialJobState, null, 2));
 
         // Async batch process
         (async () => {
-            console.log(`Starting processing for project ${id} from ${useAugmented ? 'augmented' : 'raw'}`);
-            for (const file of imageFiles) {
-                try {
-                    const inputPath = path.join(sourceDir, file);
-                    // Output always png for training best practice (lossless)
-                    const nameWithoutExt = path.parse(file).name;
-                    const outputPath = path.join(processedDir, `${nameWithoutExt}.png`);
+            console.log(`Starting processing job ${jobId} for project ${id}`);
+            let processedCount = 0;
 
-                    await processImage(inputPath, outputPath, settings as ProjectSettings);
+            for (const item of itemsToProcess) {
+                // Update item status to processing
+                itemStates[item.id] = { status: 'processing' };
+                await fs.writeFile(jobPath, JSON.stringify({
+                    ...initialJobState,
+                    progress: { processed: processedCount, total: itemsToProcess.length },
+                    results: itemStates
+                }, null, 2));
+
+                try {
+                    // Output name: if item is 'aug_foo.png' -> 'aug_foo.png' (in processed)
+                    // if item is 'foo.png' (raw) -> 'foo.png' (in processed)
+                    // Wait, if Aug items have unique names, we are good.
+                    // Manifest item has `displayName` or base `path`.
+                    // We must ensure unique filename in Processed dir.
+
+                    const fileName = path.basename(item.path);
+                    const nameWithoutExt = path.parse(fileName).name;
+                    const outputName = `${nameWithoutExt}.png`; // Always png
+                    const outputPath = path.join(processedDir, outputName);
+
+                    await processImage(item.path, outputPath, settings as ProjectSettings);
+
+                    itemStates[item.id] = {
+                        status: 'done',
+                        processedPath: `/api/images?path=${encodeURIComponent(outputPath)}`
+                    };
                 } catch (e) {
-                    console.error(`Failed to process ${file}`, e);
+                    console.error(`Failed to process ${item.displayName}`, e);
+                    itemStates[item.id] = { status: 'error', error: 'Failed' };
                 }
+
+                processedCount++;
+
+                // Periodic update or per-item? Per-item is safer for UI check marks
+                // But avoid pounding disk too hard? 
+                // With small datasets < 1000 ok.
             }
+
+            // Final update
+            const finalState = {
+                id: jobId,
+                status: 'completed',
+                progress: { processed: itemsToProcess.length, total: itemsToProcess.length },
+                results: itemStates
+            };
+            await fs.writeFile(jobPath, JSON.stringify(finalState, null, 2));
+
             await updateProjectStats(id);
-            console.log(`Finished processing for project ${id}`);
+            console.log(`Finished processing job ${jobId}`);
         })();
 
-        return NextResponse.json({
-            status: 'processing',
-            total: imageFiles.length,
-            source: useAugmented ? 'augmented' : 'raw'
-        });
+        return NextResponse.json({ jobId });
 
     } catch (error) {
         console.error('Process error:', error);

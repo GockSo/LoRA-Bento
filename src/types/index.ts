@@ -39,3 +39,22 @@ export interface ImageFile {
     height: number;
     size: number;
 }
+
+export interface ManifestItem {
+    id: string; // uuid
+    stage: 'raw' | 'augmented';
+    src: string; // URL /api/images...
+    path: string; // Absolute path
+    displayName: string;
+    groupKey: string; // raw filename
+    aug?: {
+        rotate: number;
+        flip: boolean;
+    };
+    processed?: boolean;
+}
+
+export interface ProjectManifest {
+    version: number;
+    items: ManifestItem[];
+}
