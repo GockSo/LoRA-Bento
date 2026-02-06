@@ -18,7 +18,9 @@ export interface Project {
 export interface AugmentationSettings {
     rotationRandom: boolean;
     rotationRange: [number, number]; // [min, max]
-    flipRandom: boolean;
+    rotationRange: [number, number]; // [min, max]
+    flipEnabled: boolean;
+    // Legacy/Base support
     // Legacy/Base support
     zoom?: number;
 }

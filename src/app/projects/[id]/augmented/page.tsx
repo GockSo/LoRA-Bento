@@ -14,7 +14,7 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
     const [settings, setSettings] = useState({
         rotationRandom: false,
         rotationRange: [-35, 35] as [number, number],
-        flipRandom: false,
+        flipEnabled: false,
         // Legacy support if needed, or remove
         zoom: 1
     });
@@ -281,10 +281,10 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
 
                         {/* Flip Settings */}
                         <div className="flex items-center justify-between pt-4 border-t">
-                            <Label className="text-base">Random Horizontal Flip</Label>
+                            <Label className="text-base">Horizontal Flip (Mirror Left↔Right)</Label>
                             <Switch
-                                checked={settings.flipRandom}
-                                onCheckedChange={(c) => setSettings({ ...settings, flipRandom: c })}
+                                checked={settings.flipEnabled}
+                                onCheckedChange={(c) => setSettings({ ...settings, flipEnabled: c })}
                             />
                         </div>
                     </div>
@@ -419,7 +419,7 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                                                 )}
                                                 {item.aug?.flip && (
                                                     <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
-                                                        Flip: Yes
+                                                        Flip: On
                                                     </span>
                                                 )}
                                                 {item.aug?.rotate === 0 && !item.aug?.flip && !item.error && (

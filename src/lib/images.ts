@@ -96,11 +96,17 @@ export async function augmentImage(
 ) {
     let pipeline = sharp(inputPath).ensureAlpha();
 
-    if (options.rotate) {
-        pipeline = pipeline.rotate(options.rotate, { background: { r: 0, g: 0, b: 0, alpha: 0 } });
-    }
+    // 1. Horizontal flip (LEFT<->RIGHT)
+    // Must be done BEFORE rotation to act as a pure mirror of the source
     if (options.flipH) {
         pipeline = pipeline.flop();
+    }
+
+    // 2. Rotation with transparent background
+    if (options.rotate && options.rotate !== 0) {
+        pipeline = pipeline.rotate(options.rotate, {
+            background: { r: 0, g: 0, b: 0, alpha: 0 }
+        });
     }
     // Zoom implementation requires extracting a crop. 
     // Zoom > 1 means cropping. Zoom < 1 means adding padding (which we can leave to resize step, or handle here).
@@ -133,7 +139,7 @@ export async function augmentImage(
 export function getRandomAugmentationParams(settings: {
     rotationRandom: boolean;
     rotationRange: [number, number];
-    flipRandom: boolean;
+    flipEnabled: boolean;
 }) {
     let rotate = 0;
     let flipH = false;
@@ -143,8 +149,9 @@ export function getRandomAugmentationParams(settings: {
         rotate = Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    if (settings.flipRandom) {
-        flipH = Math.random() < 0.5;
+    // Deterministic flip if enabled
+    if (settings.flipEnabled) {
+        flipH = true;
     }
 
     return { rotate, flipH };

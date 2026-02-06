@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
         return new NextResponse(fileCookie as any, {
             headers: {
                 'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=3600'
+                'Cache-Control': 'no-store, max-age=0'
             }
         });
     } catch {

@@ -12,7 +12,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     try {
         const body = await req.json();
         const settings = body.settings as AugmentationSettings;
-        // settings: { rotationRandom, rotationRange, flipRandom }
+        console.log('Augmentation Settings:', settings);
+        // settings: { rotationRandom, rotationRange, flipEnabled }
 
         const projectDir = path.join(process.cwd(), 'projects', id);
         const rawDir = path.join(projectDir, 'raw');
@@ -71,7 +72,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
                     await augmentImage(item.path, outputPath, params); // augmentImage takes { rotate, flipH } which matches
 
-                    const outputUrl = `/api/images?path=${encodeURIComponent(outputPath)}`;
+                    await augmentImage(item.path, outputPath, params); // augmentImage takes { rotate, flipH } which matches
+
+                    const outputUrl = `/api/images?path=${encodeURIComponent(outputPath)}&t=${Date.now()}`;
 
                     // Ephemeral result for Job UI
                     const result = {
