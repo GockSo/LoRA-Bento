@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Project } from '@/types';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/core';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription, Progress } from '@/components/ui/core';
 import { Button } from '@/components/ui/core';
 import { Input } from '@/components/ui/core';
 import { FolderOpen, FileText, Pencil, Trash2, Download, Loader2 } from 'lucide-react';
@@ -31,6 +31,28 @@ export function ProjectCard({ project }: ProjectCardProps) {
     const [isRenaming, setIsRenaming] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [trainingStatus, setTrainingStatus] = useState<any>(null);
+
+    // Poll for training status
+    useEffect(() => {
+        let isMounted = true;
+        const fetchStatus = async () => {
+            try {
+                const res = await fetch(`/api/projects/${project.id}/train/status`);
+                if (res.ok && isMounted) {
+                    const data = await res.json();
+                    setTrainingStatus(data);
+                }
+            } catch { }
+        };
+
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 5000); // 5s interval for dashboard
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [project.id]);
 
     const handleRename = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -140,6 +162,20 @@ export function ProjectCard({ project }: ProjectCardProps) {
                             <FileText className="h-4 w-4" />
                             <span>{project.stats.captions} Captioned</span>
                         </div>
+
+                        {/* Training Progress */}
+                        {trainingStatus?.status === 'running' && (
+                            <div className="col-span-2 space-y-1 mt-2 p-2 bg-muted/50 rounded-md">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-primary font-medium animate-pulse">Training...</span>
+                                    <span>{trainingStatus.progress.percent}%</span>
+                                </div>
+                                <Progress value={trainingStatus.progress.percent} className="h-1.5" />
+                                <div className="text-[10px] text-muted-foreground truncate">
+                                    Step {trainingStatus.progress.step} / {trainingStatus.progress.totalSteps}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
                 <CardFooter>

@@ -26,6 +26,7 @@ const steps = [
     { id: 'process', label: '3. Resize & Pad', icon: Scaling, path: 'processed' },
     { id: 'caption', label: '4. Caption', icon: Type, path: 'caption' },
     { id: 'export', label: '5. Analysis & Export', icon: ArrowRight, path: 'export' },
+    { id: 'train', label: '6. Train LoRA', icon: BarChart, path: 'train' },
 ];
 
 export function StepsSidebar({ project }: StepsSidebarProps) {

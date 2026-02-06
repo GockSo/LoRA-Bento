@@ -33,7 +33,9 @@ Run locally, private, and fast.
    ```bash
    npm run dev
    ```
-4. Open [http://localhost:3000](http://localhost:3000) with your browser.
+4. git clone https://github.com/kohya-ss/sd-scripts
+   
+5. Open [http://localhost:3000](http://localhost:3000) with your browser.
 
 ## Workflow
 
