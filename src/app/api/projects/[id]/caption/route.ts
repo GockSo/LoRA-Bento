@@ -193,6 +193,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
                     await updateProjectStats(id);
 
+                    const finalSummary = {
+                        mode,
+                        topItems,
+                        uniqueCount,
+                        samples: samples.length > 0 ? samples : undefined,
+                        totalCaptioned: Object.keys(captionsData).length,
+                        updatedAt: new Date().toISOString()
+                    };
+
+                    // Persist for Analysis/Export screen
+                    const statsPath = path.join(projectDir, 'caption_stats.json');
+                    await fs.writeFile(statsPath, JSON.stringify(finalSummary, null, 2));
+
                     // Final Job Update
                     await fs.writeFile(jobPath, JSON.stringify({
                         status: 'completed',
@@ -203,12 +216,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         totalCount,
                         excludedCount,
                         sourceStage,
-                        summary: {
-                            mode,
-                            topItems,
-                            uniqueCount,
-                            samples: samples.length > 0 ? samples : undefined
-                        }
+                        summary: finalSummary
                     }, null, 2));
 
                 } catch (e) {

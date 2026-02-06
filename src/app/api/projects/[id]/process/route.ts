@@ -77,7 +77,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
                     const fileName = path.basename(item.path);
                     const nameWithoutExt = path.parse(fileName).name;
-                    const outputName = `${nameWithoutExt}.png`; // Always png
+                    // Use ID slice to ensure uniqueness even if basenames match (e.g. 1.jpg in raw and 1.png in augmented)
+                    const outputName = `${nameWithoutExt}_${item.id.slice(0, 8)}.png`;
                     const outputPath = path.join(processedDir, outputName);
 
                     await processImage(item.path, outputPath, settings as ProjectSettings);
