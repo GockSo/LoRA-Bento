@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Card } from '@/components/ui/core';
 import { Zap, Trash2, X, Maximize2, ArrowLeft, ArrowRight } from 'lucide-react';
 import {
@@ -22,8 +22,48 @@ interface BlurryManagerProps {
 export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [viewingItem, setViewingItem] = useState<ManifestItem | null>(null);
+    const [selectedIndex, setSelectedIndex] = useState(0);
 
     const blurryItems = items.filter(i => i.flags?.isBlurry);
+
+    // Sync selection when opening viewer manually (clicking a specific card)
+    const handleOpenViewer = (item: ManifestItem, index: number) => {
+        setSelectedIndex(index);
+        setViewingItem(item);
+    };
+
+    // Keyboard Navigation
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in an input
+            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const newIndex = (selectedIndex + 1) % blurryItems.length;
+                setSelectedIndex(newIndex);
+                if (viewingItem) setViewingItem(blurryItems[newIndex]);
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const newIndex = (selectedIndex - 1 + blurryItems.length) % blurryItems.length;
+                setSelectedIndex(newIndex);
+                if (viewingItem) setViewingItem(blurryItems[newIndex]);
+            } else if (e.key === 'Delete') {
+                e.preventDefault();
+                if (blurryItems[selectedIndex]) {
+                    handleDelete(blurryItems[selectedIndex].path);
+                }
+            } else if (e.key === 'Escape') {
+                // If viewer is open, it handles its own escape usually, but we want to ensure consistent behavior
+                // Let Dialog handle Escape for closing itself if viewer is not open
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, blurryItems, selectedIndex, viewingItem]);
 
     if (blurryItems.length === 0) return null;
 
@@ -33,10 +73,35 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                 method: 'DELETE',
                 body: JSON.stringify({ path }),
             });
-            onUpdate();
-            // If viewing this item, close viewer or move next
-            if (viewingItem?.path === path) {
+
+            // Calculate new index before update happens (optimistic-ish logical update)
+            // But we rely on onUpdate to refresh 'items' prop
+
+            // Adjust selection logic:
+            // If deleting last item, move back one.
+            // If list becomes empty, close (handled by parent re-render return null)
+            if (blurryItems.length <= 1) {
+                setIsOpen(false);
                 setViewingItem(null);
+            } else if (selectedIndex >= blurryItems.length - 1) {
+                setSelectedIndex(Math.max(0, blurryItems.length - 2)); // Move to previous (now last)
+            }
+            // else: keep same index, which will point to next item effectively
+
+            onUpdate();
+
+            if (viewingItem?.path === path) {
+                // If there are items left, update viewer to new item at index
+                if (blurryItems.length > 1) {
+                    // We need to wait for state update or predict it. 
+                    // Since 'items' comes from parent, we can't instantly set viewingItem to the 'next' object reference 
+                    // because it might change. Ideally we wait for effect.
+                    // For UI responsiveness, we can close viewer or try to find neighbor.
+                    // Simple approach: Close viewer for now to avoid stale state, or let effect sync it.
+                    setViewingItem(null);
+                } else {
+                    setViewingItem(null);
+                }
             }
         } catch (e) {
             console.error(e);
@@ -60,20 +125,33 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                 </div>
             </DialogTrigger>
             <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Review Blurry Images ({blurryItems.length})</DialogTitle>
+                <DialogHeader className="flex flex-row items-center justify-between border-b pb-4">
+                    <DialogTitle>Review Blurry Images</DialogTitle>
+                    <div className="text-sm font-mono text-muted-foreground mr-8">
+                        {selectedIndex + 1} / {blurryItems.length}
+                    </div>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-auto p-1">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {blurryItems.map(item => (
-                            <Card key={item.id} className="group relative overflow-hidden aspect-square border-orange-200">
+                        {blurryItems.map((item, idx) => (
+                            <Card
+                                key={item.id}
+                                className={cn(
+                                    "group relative overflow-hidden aspect-square border-orange-200 transition-all",
+                                    selectedIndex === idx ? "ring-4 ring-orange-500 ring-offset-2 scale-[1.02] z-10" : ""
+                                )}
+                                onClick={() => setSelectedIndex(idx)} // Allow clicking to select without opening
+                            >
                                 <img src={item.src} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <Button size="icon" variant="secondary" className="h-8 w-8 text-xs" onClick={() => setViewingItem(item)}>
+                                <div className={cn(
+                                    "absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center gap-2",
+                                    selectedIndex === idx ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                )}>
+                                    <Button size="icon" variant="secondary" className="h-8 w-8 text-xs" onClick={(e) => { e.stopPropagation(); handleOpenViewer(item, idx); }}>
                                         <Maximize2 className="h-4 w-4" />
                                     </Button>
-                                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDelete(item.path)}>
+                                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleDelete(item.path); }}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -89,13 +167,24 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                         </div>
                     )}
                 </div>
+
+                <div className="p-2 border-t text-xs text-muted-foreground text-center">
+                    Use <span className="font-mono bg-muted px-1 rounded">←</span> <span className="font-mono bg-muted px-1 rounded">→</span> to navigate, <span className="font-mono bg-muted px-1 rounded">Delete</span> to remove.
+                </div>
             </DialogContent>
 
             {/* Full Screen Viewer */}
             {viewingItem && (
-                <Dialog open={!!viewingItem} onOpenChange={(o) => !o && setViewingItem(null)}>
-                    <DialogContent className="max-w-screen-xl w-full h-[90vh] bg-black/95 border-none p-0 flex flex-col">
+                <Dialog open={!!viewingItem} onOpenChange={(o: boolean) => {
+                    if (!o) setViewingItem(null);
+                }}>
+                    <DialogContent className="max-w-screen-xl w-full h-[90vh] bg-black/95 border-none p-0 flex flex-col focus:outline-none" onKeyDown={(e: React.KeyboardEvent) => e.stopPropagation()}>
+                        <DialogTitle className="sr-only">Full Screen Image Viewer</DialogTitle>
+                        {/* We prevent propagation so parent dialog doesn't double-handle, but actually our window listener handles it. */}
                         <div className="absolute top-2 right-2 z-50 flex gap-2">
+                            <div className="text-white/50 font-mono text-sm self-center mr-4">
+                                {selectedIndex + 1} / {blurryItems.length}
+                            </div>
                             <Button variant="destructive" onClick={() => handleDelete(viewingItem.path)}>
                                 <Trash2 className="h-4 w-4 mr-2" /> Delete
                             </Button>
@@ -103,8 +192,33 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
-                        <div className="flex-1 flex items-center justify-center overflow-hidden">
+                        <div className="flex-1 flex items-center justify-center overflow-hidden relative">
+                            {/* Navigation Arrows for Mouse Users */}
+                            <Button
+                                variant="ghost"
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white hover:bg-white/10 h-12 w-12 rounded-full"
+                                onClick={() => {
+                                    const newIndex = (selectedIndex - 1 + blurryItems.length) % blurryItems.length;
+                                    setSelectedIndex(newIndex);
+                                    setViewingItem(blurryItems[newIndex]);
+                                }}
+                            >
+                                <ArrowLeft className="h-8 w-8" />
+                            </Button>
+
                             <img src={viewingItem.src} className="max-w-full max-h-full object-contain" />
+
+                            <Button
+                                variant="ghost"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white hover:bg-white/10 h-12 w-12 rounded-full"
+                                onClick={() => {
+                                    const newIndex = (selectedIndex + 1) % blurryItems.length;
+                                    setSelectedIndex(newIndex);
+                                    setViewingItem(blurryItems[newIndex]);
+                                }}
+                            >
+                                <ArrowRight className="h-8 w-8" />
+                            </Button>
                         </div>
                         <div className="p-4 text-center text-white/50 font-mono text-sm">
                             {viewingItem.displayName} — Blur Score: {Math.round(viewingItem.blurScore || 0)}
