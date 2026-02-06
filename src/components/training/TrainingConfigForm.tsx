@@ -78,13 +78,38 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2 col-span-2">
                             <Label>Pretrained Model Path (SAFE TENSORS OR CKPT)</Label>
-                            <Input
-                                value={config.pretrainedModelPath}
-                                onChange={e => handleChange('pretrainedModelPath', e.target.value)}
-                                placeholder="C:/Models/stable-diffusion-v1-5.safetensors"
-                                required
-                                disabled={disabled}
-                            />
+                            <div className="flex gap-2">
+                                <Input
+                                    value={config.pretrainedModelPath}
+                                    onChange={e => handleChange('pretrainedModelPath', e.target.value)}
+                                    placeholder="C:/Models/stable-diffusion-v1-5.safetensors"
+                                    required
+                                    disabled={disabled}
+                                    className="flex-1"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={disabled}
+                                    onClick={async () => {
+                                        try {
+                                            const res = await fetch('/api/dialog/open-model-file', {
+                                                method: 'POST'
+                                            });
+                                            if (res.ok) {
+                                                const data = await res.json();
+                                                if (data.ok && data.path) {
+                                                    handleChange('pretrainedModelPath', data.path);
+                                                }
+                                            }
+                                        } catch (e) {
+                                            console.error('Failed to open dialog', e);
+                                        }
+                                    }}
+                                >
+                                    Browse...
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="space-y-2">
