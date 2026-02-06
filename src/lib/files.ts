@@ -50,8 +50,19 @@ export async function safeClearFolder(projectDir: string, folderName: string) {
         const files = await fs.readdir(folderPath);
         for (const file of files) {
             const filePath = path.join(folderPath, file);
-            // Verify again just to be sure (though readdir is 1-level)
-            await safeDelete(projectDir, filePath, false);
+
+            try {
+                const stats = await fs.lstat(filePath);
+                if (stats.isDirectory()) {
+                    // Recursively remove directory
+                    await fs.rm(filePath, { recursive: true, force: true });
+                } else {
+                    // Delete file safely
+                    await safeDelete(projectDir, filePath, false);
+                }
+            } catch (e) {
+                console.error(`Failed to delete ${file} in ${folderName}`, e);
+            }
         }
     } catch (e: any) {
         // Folder might not exist, ignore

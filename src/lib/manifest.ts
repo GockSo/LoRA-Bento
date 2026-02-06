@@ -89,9 +89,6 @@ export function sortManifestItems(items: ManifestItem[]) {
         if (a.stage !== 'raw' && b.stage === 'raw') return 1;
 
         // Tertiary: Display Name (for multiple augments of same raw)
-        if (a.displayName < b.displayName) return -1;
-        if (a.displayName > b.displayName) return 1;
-
-        return 0;
+        return a.displayName.localeCompare(b.displayName, undefined, { numeric: true, sensitivity: 'base' });
     });
 }

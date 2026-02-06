@@ -48,31 +48,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         await fs.writeFile(jobPath, JSON.stringify(initialJobState, null, 2));
 
+
         // Start background processing
         (async () => {
             console.log(`Starting augmentation job ${jobId} for project ${id}`);
             const results: any[] = [];
             const newManifestItems: ManifestItem[] = [];
 
-            // Clean old augmented files? For now, we append/overwrite locally but maybe user wants fresh start.
-            // User requirement: "Prefer previewing newly generated augmented images".
-            // Let's clear old files for clean slate as per "one-click confirm" implied freshness.
-            // Actually, keep it simple. Overwrite if name conflicts, otherwise add.
-
             for (let i = 0; i < rawItems.length; i++) {
                 const item = rawItems[i];
                 try {
                     // item.path is absolute path to raw file
                     const fileBaseName = path.basename(item.path, path.extname(item.path)); // Name without extension
-                    const outputName = `aug_${fileBaseName}.png`;
-                    const outputPath = path.join(augDir, outputName);
+
+                    // NEW: Subfolder per raw image
+                    const itemAugDir = path.join(augDir, `${fileBaseName}_aug`);
+                    await fs.mkdir(itemAugDir, { recursive: true });
+
+                    // Find next index
+                    // Read existing files in this dir
+                    const existingFiles = await fs.readdir(itemAugDir);
+                    // Filter for <number>.png
+                    const indices = existingFiles
+                        .map(f => {
+                            const match = f.match(/^(\d+)\.png$/);
+                            return match ? parseInt(match[1]) : 0;
+                        })
+                        .filter(n => n > 0);
+
+                    const nextIndex = indices.length > 0 ? Math.max(...indices) + 1 : 1;
+
+                    const outputName = `${nextIndex}.png`;
+                    const outputPath = path.join(itemAugDir, outputName);
 
                     const params = getRandomAugmentationParams(settings);
                     // params: { rotate, flipH }
 
-                    await augmentImage(item.path, outputPath, params); // augmentImage takes { rotate, flipH } which matches
-
-                    await augmentImage(item.path, outputPath, params); // augmentImage takes { rotate, flipH } which matches
+                    await augmentImage(item.path, outputPath, params);
 
                     const outputUrl = `/api/images?path=${encodeURIComponent(outputPath)}&t=${Date.now()}`;
 
@@ -81,7 +93,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         file: outputName,
                         url: outputUrl,
                         angle: params.rotate,
-                        flipped: params.flipH
+                        flipped: params.flipH,
+                        groupKey: item.groupKey // Pass group key for client sorting
                     };
                     results.push(result);
 

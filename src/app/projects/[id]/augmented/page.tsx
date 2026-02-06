@@ -182,7 +182,7 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
             stage: 'augmented',
             src: r.url,
             displayName: r.file,
-            groupKey: r.file.replace('aug_', ''), // Extract raw name from aug_filename?
+            groupKey: r.groupKey, // Group key passed from server
             aug: { rotate: r.angle, flip: r.flipped },
             isEphemeral: true
         }));
@@ -191,10 +191,11 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
     }
 
     // Sort displayItems by groupKey then stage
+    // Sort displayItems by groupKey then stage
     const sortedDisplayItems = displayItems.sort((a, b) => {
-        // Hacky groupKey extraction if missing (results might not have it perfectly set)
-        const keyA = a.groupKey || a.displayName.replace('aug_', '');
-        const keyB = b.groupKey || b.displayName.replace('aug_', '');
+        // Use groupKey for grouping. Fallback to displayName only if groupKey missing (shouldn't happen for new items)
+        const keyA = a.groupKey || a.displayName;
+        const keyB = b.groupKey || b.displayName;
 
         if (keyA < keyB) return -1;
         if (keyA > keyB) return 1;
@@ -204,7 +205,8 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
         if (a.stage === 'raw' && b.stage !== 'raw') return -1;
         if (a.stage !== 'raw' && b.stage === 'raw') return 1;
 
-        return 0;
+        // Tertiary: Natural sort for numbered files (1.png, 2.png, 10.png)
+        return a.displayName.localeCompare(b.displayName, undefined, { numeric: true, sensitivity: 'base' });
     });
 
     // Filtering Logic
