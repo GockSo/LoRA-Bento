@@ -142,11 +142,16 @@ class TrainingManager {
         // Pass the STAGING ROOT as train_data_dir
         const args = this.constructArgs(config, stagingRoot);
 
-        console.log('Starting training with command:', pythonPath, trainerScriptPath, args.join(' '));
+        console.log('Starting training with command:', pythonPath, '-X utf8', trainerScriptPath, args.join(' '));
 
-        const child = spawn(pythonPath, [trainerScriptPath, ...args], {
+        const child = spawn(pythonPath, ['-X', 'utf8', trainerScriptPath, ...args], {
             cwd: process.cwd(),
-            env: { ...process.env, PYTHONUNBUFFERED: '1' }
+            env: {
+                ...process.env,
+                PYTHONUNBUFFERED: '1',
+                PYTHONUTF8: '1',
+                PYTHONIOENCODING: 'utf-8'
+            }
         });
 
         const initialStatus: TrainingStatus = {
