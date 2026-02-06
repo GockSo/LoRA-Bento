@@ -52,6 +52,64 @@ Run locally, private, and fast.
 - `src/`: Next.js source code.
 - `scripts/`: Python helper scripts.
 
-## License
+## License& Usage
 
-MIT
+LoRA Bento is a source-available project.
+
+You are free to:
+
+Use the software for personal, hobby, and research purposes
+
+Run it locally on your own machine
+
+Read, modify, and experiment with the source code
+
+However, commercial use is NOT permitted.
+
+❌ Prohibited Uses
+
+The following are not allowed without explicit written permission from the project author:
+
+Selling the software, in whole or in part
+
+Offering it as part of a paid product or service
+
+Hosting it as a commercial SaaS / cloud service
+
+Redistributing modified versions for commercial purposes
+
+✅ Allowed Uses
+
+Personal dataset preparation
+
+Non-commercial research and experimentation
+
+Educational use
+
+Local workflows for training personal models
+
+If you are interested in commercial use, redistribution, or SaaS licensing,
+please contact the project author to discuss a separate commercial license.
+
+License Type
+
+This project uses a Non-Commercial Source-Available License.
+
+This project is not Open Source under the OSI definition,
+but the source code is publicly available to ensure transparency, learning, and community collaboration.
+
+Why this license?
+
+LoRA Bento is designed to support creators, researchers, and the open ML community,
+while preventing closed-source commercial exploitation without contribution.
+
+This license ensures:
+
+Free access for individual creators
+
+Protection against uncredited commercial reuse
+
+A sustainable path for future development
+
+© 2026 LoRA Bento contributors. All rights reserved.
+Commercial use requires explicit permission.
