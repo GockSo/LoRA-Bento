@@ -249,9 +249,9 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                         {sortedDisplayItems.length > 0 ? (
                             sortedDisplayItems.map((item: any, idx: number) => (
                                 <Card key={item.id + idx} className={`overflow-hidden group relative ${item.stage === 'raw' ? 'bg-background border-dashed' : 'bg-muted/20'} ${item.isEphemeral ? 'animate-in fade-in zoom-in-95 duration-300' : ''}`}>
-                                    <div className="aspect-square relative">
+                                    <div className="aspect-square relative bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAHUlEQVQ4jWNgYGAQIyP7BwH8FOMWAgPDqIGBQQwADsMEx5M/t1EAAAAASUVORK5CYII=')] bg-repeat">
                                         {item.error ? (
-                                            <div className="absolute inset-0 flex items-center justify-center text-destructive p-4 text-center text-xs">
+                                            <div className="absolute inset-0 flex items-center justify-center text-destructive p-4 text-center text-xs bg-background/80">
                                                 {item.error}
                                             </div>
                                         ) : (
@@ -312,6 +312,6 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

@@ -62,8 +62,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 const item = rawItems[i];
                 try {
                     // item.path is absolute path to raw file
-                    const fileBaseName = path.basename(item.path);
-                    const outputName = `aug_${fileBaseName}`;
+                    const fileBaseName = path.basename(item.path, path.extname(item.path)); // Name without extension
+                    const outputName = `aug_${fileBaseName}.png`;
                     const outputPath = path.join(augDir, outputName);
 
                     const params = getRandomAugmentationParams(settings);

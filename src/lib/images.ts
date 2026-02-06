@@ -94,7 +94,7 @@ export async function augmentImage(
     outputPath: string,
     options: { rotate?: number; flipH?: boolean; zoom?: number }
 ) {
-    let pipeline = sharp(inputPath);
+    let pipeline = sharp(inputPath).ensureAlpha();
 
     if (options.rotate) {
         pipeline = pipeline.rotate(options.rotate, { background: { r: 0, g: 0, b: 0, alpha: 0 } });
@@ -126,7 +126,8 @@ export async function augmentImage(
         }
     }
 
-    await pipeline.toFile(outputPath);
+    // Force PNG output to preserve transparency
+    await pipeline.png().toFile(outputPath);
 }
 
 export function getRandomAugmentationParams(settings: {
