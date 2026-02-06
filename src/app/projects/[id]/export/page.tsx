@@ -186,7 +186,21 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
                             </div>
                         )}
 
-                        <Button className="w-full shadow-lg" size="lg" asChild>
+                        <Button
+                            className="w-full shadow-lg"
+                            size="lg"
+                            asChild
+                            onClick={() => {
+                                toast.promise(
+                                    new Promise((resolve) => setTimeout(resolve, 2000)),
+                                    {
+                                        loading: 'Generating ZIP archive...',
+                                        success: `Exporting ${summary.totalCount} images + ${summary.hasCaptions ? summary.totalCount : 0} captions`,
+                                        error: 'Export failed'
+                                    }
+                                );
+                            }}
+                        >
                             <a href={`/api/projects/${id}/export`} target="_blank" rel="noopener noreferrer">
                                 <Download className="mr-2 h-5 w-5" />
                                 Download Dataset (.zip)

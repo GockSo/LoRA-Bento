@@ -54,15 +54,20 @@ export async function getTrainingSet(projectId: string): Promise<TrainingSet> {
         let captionPath = '';
 
         if (hasProcessed) {
-            // Updated unique naming: ${baseName}_${id_slice}.png
+            // Processed naming: ${baseName}_${shortId}.png
             const shortId = item.id.slice(0, 8);
             const processedImgPath = path.join(processedDir, `${baseName}_${shortId}.png`);
+
             // Check if it exists
             const exists = await fs.access(processedImgPath).then(() => true).catch(() => false);
             if (exists) {
                 imagePath = processedImgPath;
-                // CAPTION PATH MUST MATCH: ${baseName}_${shortId}.txt
+                // CAPTION PATH: ${baseName}_${shortId}.txt
                 captionPath = path.join(processedDir, `${baseName}_${shortId}.txt`);
+            } else if (item.stage === 'augmented') {
+                // If it's an augmented item but not in processed, it might be an issue
+                // but we should still try to find it in augmented folder if hasProcessed is false or it's missing
+                // However, the rule is source-of-truth is processed/ if it contains images.
             }
         }
 
