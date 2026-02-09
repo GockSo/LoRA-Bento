@@ -6,6 +6,8 @@ import { updateProjectStats, updateProject, getProject } from '@/lib/projects';
 import { addToManifest, getManifest } from '@/lib/manifest';
 import { v4 as uuidv4 } from 'uuid';
 import { AugmentationSettings, ManifestItem } from '@/types';
+import { resolveAugmentInput } from '@/lib/augment-resolver';
+
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -27,11 +29,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         // Save settings to project
         await updateProject(id, { settings: { augmentation: settings } as any });
 
-        // Get Manifest to find Raw items
-        const manifest = await getManifest(id);
-        const rawItems = manifest.items.filter(i => i.stage === 'raw');
+        // Enumerate raw directory instead of using manifest
+        const rawFiles = await fs.readdir(rawDir);
+        const imageFiles = rawFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
 
-        if (rawItems.length === 0) {
+        if (imageFiles.length === 0) {
             return NextResponse.json({ error: 'No raw images to augment' }, { status: 400 });
         }
 
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const initialJobState = {
             id: jobId,
             status: 'running',
-            progress: { processed: 0, total: rawItems.length },
+            progress: { processed: 0, total: imageFiles.length },
             results: [] // Ephemeral results for live UI feedback
         };
 
@@ -55,47 +57,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             const results: any[] = [];
             const newManifestItems: ManifestItem[] = [];
 
-            for (let i = 0; i < rawItems.length; i++) {
-                const item = rawItems[i];
+            for (let i = 0; i < imageFiles.length; i++) {
+                const filename = imageFiles[i];
                 try {
-                    // item.path is absolute path to raw file
-                    const fileBaseName = path.basename(item.path, path.extname(item.path)); // Name without extension
+                    // Use shared resolver to determine the effective input source
+                    const { sourceType, absPath, sourceFile } = await resolveAugmentInput(id, filename);
+                    const sourcePath = absPath;
 
-
-                    // Check for active crop in new multi-crop structure
-                    const filename = path.basename(item.path);
-                    const cropDir = path.join(projectDir, 'cropped', filename);
-                    const metaPath = path.join(cropDir, 'meta.json');
-                    let sourcePath = item.path;
-
-                    // SKIP CROP LOGIC
-                    const projectConfig = await getProject(id);
-                    if (projectConfig?.crop?.mode === 'skip') {
-                        const skipCropPath = path.join(projectDir, 'skip_crop', filename);
-                        try {
-                            await fs.access(skipCropPath);
-                            sourcePath = skipCropPath;
-                            // continue with this source
-                        } catch {
-                            // fallback to normal logic if file missing (shouldn't happen if enabled correctly)
-                            console.warn(`Skip crop enabled but file not found: ${skipCropPath}`);
-                        }
-                    } else {
-                        // Normal Crop Logic
-                        try {
-                            // Check if crop directory and meta exist
-                            await fs.access(metaPath);
-                            const metaContent = await fs.readFile(metaPath, 'utf-8');
-                            const meta = JSON.parse(metaContent);
-
-                            if (meta.activeCrop) {
-                                sourcePath = path.join(cropDir, meta.activeCrop);
-                            }
-                        } catch {
-                            // Fallback to raw (sourcePath is already item.path)
-                        }
-                    }
-
+                    const fileBaseName = path.basename(filename, path.extname(filename));
 
                     // NEW: Subfolder per raw image
                     const itemAugDir = path.join(augDir, `${fileBaseName}_aug`);
@@ -130,21 +99,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         url: outputUrl,
                         angle: params.rotate,
                         flipped: params.flipH,
-                        groupKey: item.groupKey // Pass group key for client sorting
+                        groupKey: filename // Pass group key for client sorting
                     };
                     results.push(result);
 
-                    // Permanent Manifest Item
+                    // Permanent Manifest Item with enhanced metadata
                     newManifestItems.push({
                         id: uuidv4(),
                         stage: 'augmented',
                         src: outputUrl,
                         path: outputPath,
                         displayName: outputName,
-                        groupKey: item.groupKey, // Link to source raw for grouping
+                        groupKey: filename, // Link to source raw for grouping
                         aug: {
                             rotate: params.rotate,
-                            flip: params.flipH
+                            flip: params.flipH,
+                            inputSourceType: sourceType,           // NEW: track which source was used
+                            inputFile: sourceFile || filename      // NEW: track which file was used
                         }
                     });
 
@@ -153,16 +124,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     const currentState = {
                         id: jobId,
                         status: 'running',
-                        progress: { processed: i + 1, total: rawItems.length },
+                        progress: { processed: i + 1, total: imageFiles.length },
                         results: results
                     };
                     await fs.writeFile(jobPath, JSON.stringify(currentState, null, 2));
 
                 } catch (e) {
-                    console.error(`Failed to augment ${item.displayName}`, e);
+                    console.error(`Failed to augment ${filename}`, e);
                     // Add error result?
                     results.push({
-                        file: item.displayName,
+                        file: filename,
                         error: 'Failed to process'
                     });
                 }
@@ -175,7 +146,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             const finalState = {
                 id: jobId,
                 status: 'completed',
-                progress: { processed: rawItems.length, total: rawItems.length },
+                progress: { processed: imageFiles.length, total: imageFiles.length },
                 results: results
             };
             await fs.writeFile(jobPath, JSON.stringify(finalState, null, 2));

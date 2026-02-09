@@ -64,6 +64,8 @@ export interface ManifestItem {
     aug?: {
         rotate: number;
         flip: boolean;
+        inputSourceType?: 'crop' | 'skip_crop' | 'raw';
+        inputFile?: string;
     };
     processed?: boolean;
 }

@@ -182,7 +182,7 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
                         {!summary.hasCaptions && (
                             <div className="mb-6 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
                                 <AlertCircle className="h-4 w-4 shrink-0" />
-                                <p>Captions missing. Export will only contain images unless you complete Step 4.</p>
+                                <p>Captions missing. Export will only contain images unless you complete Step 5. but if you ok can export without captions </p>
                             </div>
                         )}
 
