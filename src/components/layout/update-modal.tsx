@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/core';
 import { Loader2, Terminal, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface UpdateInfo {
     branch: string;
@@ -29,6 +30,7 @@ interface UpdateModalProps {
 }
 
 export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps) {
+    const { t } = useTranslation('common');
     const [updating, setUpdating] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const [completed, setCompleted] = useState(false);
@@ -94,9 +96,9 @@ export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps
         <Dialog open={open} onOpenChange={(val) => !updating && onOpenChange(val)}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Update LoRA Bento?</DialogTitle>
+                    <DialogTitle>{t('update.modal_title')}</DialogTitle>
                     <DialogDescription>
-                        A new version is available.
+                        {t('update.modal_desc')}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -104,23 +106,23 @@ export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps
                     <div className="space-y-4 py-4">
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="space-y-1">
-                                <p className="font-medium text-muted-foreground">Current Version</p>
+                                <p className="font-medium text-muted-foreground">{t('update.current_version')}</p>
                                 <div className="p-2 bg-muted/50 rounded border font-mono text-xs">
-                                    <p>Branch: {updateInfo.branch}</p>
-                                    <p>Hash: {updateInfo.currentHash}</p>
-                                    {updateInfo.currentTag && <p>Tag: {updateInfo.currentTag}</p>}
+                                    <p>{t('update.branch')}: {updateInfo.branch}</p>
+                                    <p>{t('update.hash')}: {updateInfo.currentHash}</p>
+                                    {updateInfo.currentTag && <p>{t('update.tag')}: {updateInfo.currentTag}</p>}
                                 </div>
                             </div>
                             <div className="space-y-1">
-                                <p className="font-medium text-muted-foreground">Latest Version</p>
+                                <p className="font-medium text-muted-foreground">{t('update.latest_version')}</p>
                                 <div className="p-2 bg-primary/10 rounded border border-primary/20 font-mono text-xs text-primary">
                                     {updateInfo.latestTag ? (
                                         <p className="font-bold">{updateInfo.latestTag}</p>
                                     ) : (
-                                        <p>Remote HEAD</p>
+                                        <p>{t('update.remote_head')}</p>
                                     )}
                                     {updateInfo.behind > 0 && (
-                                        <p className="text-amber-500">{updateInfo.behind} commits behind</p>
+                                        <p className="text-amber-500">{t('update.commits_behind', { count: updateInfo.behind })}</p>
                                     )}
                                 </div>
                             </div>
@@ -129,8 +131,7 @@ export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps
                         <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md flex items-start gap-2 text-xs text-yellow-800 dark:text-yellow-200">
                             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                             <p>
-                                Please make sure you have no uncommitted changes before updating.
-                                The update process will fail if your working directory is dirty.
+                                {t('update.warning')}
                             </p>
                         </div>
                     </div>
@@ -153,27 +154,27 @@ export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps
                     {!updating && !completed ? (
                         <>
                             <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                                Cancel
+                                {t('actions.cancel')}
                             </Button>
                             <div className="flex gap-2">
                                 {/* Optional: Update from main */}
                                 {/* <Button variant="outline" onClick={() => handleUpdate('pull')}>
-                                    Update from Main
+                                    {t('update.update_from_main')}
                                 </Button> */}
                                 <Button onClick={() => handleUpdate('tag')} disabled={!updateInfo.latestTag}>
-                                    Update to {updateInfo.latestTag || 'Latest'}
+                                    {t('update.update_to', { version: updateInfo.latestTag || 'Latest' })}
                                 </Button>
                             </div>
                         </>
                     ) : completed ? (
                         <Button onClick={handleRestart} className="w-full">
                             <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Refresh Page
+                            {t('update.refresh_page')}
                         </Button>
                     ) : (
                         <Button disabled className="w-full">
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Updating...
+                            {t('update.updating')}
                         </Button>
                     )}
                 </DialogFooter>

@@ -157,6 +157,25 @@
         "active": "Active",
         "continue": "Continue"
     },
+    "update": {
+        "available": "Update available",
+        "version_ready": "{{version}} ready",
+        "update_now": "Update Now",
+        "modal_title": "Update LoRA Bento?",
+        "modal_desc": "A new version is available.",
+        "current_version": "Current Version",
+        "latest_version": "Latest Version",
+        "branch": "Branch",
+        "hash": "Hash",
+        "tag": "Tag",
+        "commits_behind": "{{count}} commits behind",
+        "remote_head": "Remote HEAD",
+        "warning": "Please make sure you have no uncommitted changes before updating. The update process will fail if your working directory is dirty.",
+        "update_to": "Update to {{version}}",
+        "update_from_main": "Update from Main",
+        "updating": "Updating...",
+        "refresh_page": "Refresh Page"
+    },
     "credits": {
         "title": "About / Credits",
         "created_by": "Created by",

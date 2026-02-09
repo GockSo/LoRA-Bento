@@ -6,6 +6,7 @@ import { Download, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UpdateModal } from './update-modal';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface UpdateInfo {
     ok: boolean;
@@ -21,6 +22,7 @@ interface UpdateInfo {
 }
 
 export function UpdatePrompt() {
+    const { t } = useTranslation('common');
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
     const [showPrompt, setShowPrompt] = useState(false);
     const [showModal, setShowModal] = useState(false);
@@ -68,10 +70,10 @@ export function UpdatePrompt() {
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2 text-primary font-medium text-xs">
                                     <Download className="h-3 w-3" />
-                                    <span>Update available</span>
+                                    <span>{t('update.available')}</span>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground font-mono">
-                                    {updateInfo.latestTag || 'New version'} ready
+                                    {updateInfo.latestTag ? t('update.version_ready', { version: updateInfo.latestTag }) : t('update.version_ready', { version: 'New version' })}
                                 </p>
                             </div>
                             <Button
@@ -89,7 +91,7 @@ export function UpdatePrompt() {
                             className="w-full mt-2 h-7 text-xs shadow-sm"
                             onClick={() => setShowModal(true)}
                         >
-                            Update Now
+                            {t('update.update_now')}
                         </Button>
                     </motion.div>
                 )}
