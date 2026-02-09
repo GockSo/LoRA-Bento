@@ -57,7 +57,26 @@ export async function getProjectStats(projectId: string): Promise<ProjectStats> 
 
     return {
         total: await countFiles(path.join(projectDir, 'raw')),
-        cropped: await countFiles(path.join(projectDir, 'cropped')),
+        // Update crop count to count all crop variants in subdirectories
+        cropped: await (async () => {
+            try {
+                const cropDir = path.join(projectDir, 'cropped');
+                const entries = await fs.readdir(cropDir, { withFileTypes: true });
+                let count = 0;
+                for (const entry of entries) {
+                    if (entry.isDirectory()) {
+                        // It's a directory for a raw image, count crops inside
+                        const subDir = path.join(cropDir, entry.name);
+                        const subFiles = await fs.readdir(subDir);
+                        count += subFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f)).length;
+                    } else if (/\.(jpg|jpeg|png|webp)$/i.test(entry.name)) {
+                        // Legacy flat file support
+                        count++;
+                    }
+                }
+                return count;
+            } catch { return 0; }
+        })(),
         augmented: await countFiles(path.join(projectDir, 'augmented')),
         processed: await countFiles(path.join(projectDir, 'processed')),
         captions: await countTxt(path.join(projectDir, 'processed'))

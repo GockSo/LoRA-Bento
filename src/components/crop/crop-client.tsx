@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
@@ -8,12 +8,23 @@ import 'react-image-crop/dist/ReactCrop.css';
 import { Button } from '@/components/ui/core';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { CheckCircle, RotateCcw, Scissors, ArrowRight } from 'lucide-react';
+import { CheckCircle, RotateCcw, Scissors, ArrowRight, Settings2, Sparkles, Loader2 } from 'lucide-react';
+import { ManageCropsModal } from './manage-crops-modal';
+import { ReviewAutoCropModal } from './review-auto-crop-modal';
+
+interface CropVariant {
+    file: string;
+    bbox: { x: number; y: number; w: number; h: number };
+    source: string;
+    confidence?: number;
+    createdAt: string;
+    url?: string;
+}
 
 interface CropImage {
     id: string; // filename
     rawUrl: string;
-    croppedUrl: string | null;
+    croppedUrl: string | null; // active crop url
     isCropped: boolean;
     width: number;
     height: number;
@@ -52,32 +63,94 @@ export function CropClient({ projectId, images }: CropClientProps) {
     const imgRef = useRef<HTMLImageElement>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Sort images: uncropped first? or just by name. Let's keep original order but maybe show uncropped clearer.
-    // For now simple list.
+    // Multi-crop state
+    const [variants, setVariants] = useState<CropVariant[]>([]);
+    const [activeCropFile, setActiveCropFile] = useState<string | null>(null);
+    const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+
+    // Auto Crop State
+    const [isAutoCropping, setIsAutoCropping] = useState(false);
+    const [autoCropJobId, setAutoCropJobId] = useState<string | null>(null);
+    const [autoCropProposals, setAutoCropProposals] = useState<any[]>([]);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+    // Fetch crop variants when image selected
+    const fetchVariants = useCallback(async () => {
+        if (!selectedImage) return;
+        try {
+            const res = await fetch(`/api/projects/${projectId}/crop/variants?imageId=${selectedImage.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                setVariants(data.variants || []);
+                setActiveCropFile(data.activeCrop || null);
+            }
+        } catch (e) {
+            console.error('Failed to fetch variants', e);
+        }
+    }, [projectId, selectedImage]);
+
+    useEffect(() => {
+        if (selectedImage) {
+            fetchVariants();
+        } else {
+            setVariants([]);
+            setActiveCropFile(null);
+        }
+    }, [selectedImage, fetchVariants]);
+
+    // Cleanup crop selection on image change
+    useEffect(() => {
+        setCrop(undefined);
+        setCompletedCrop(undefined);
+    }, [selectedImage]);
+
+    // Poll for auto crop job
+    useEffect(() => {
+        if (!autoCropJobId) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/projects/${projectId}/crop/auto/results?jobId=${autoCropJobId}`);
+                if (res.ok) {
+                    const job = await res.json();
+                    if (job.status === 'completed') {
+                        setIsAutoCropping(false);
+                        setAutoCropJobId(null);
+                        if (job.result && job.result.proposals) {
+                            setAutoCropProposals(job.result.proposals);
+                            setIsReviewModalOpen(true);
+                            toast.success('Auto Crop completed');
+                        } else {
+                            toast.error('Auto Crop completed but no proposals found');
+                        }
+                    } else if (job.status === 'failed') {
+                        setIsAutoCropping(false);
+                        setAutoCropJobId(null);
+                        toast.error(`Auto Crop failed: ${job.error}`);
+                    }
+                    // else pending/processing, continue polling
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [autoCropJobId, projectId]);
 
     function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+        const aspect = undefined; // local var for now
         if (aspect) {
             const { width, height } = e.currentTarget;
             setCrop(centerAspectCrop(width, height, aspect));
         }
     }
 
-    // We don't enforce aspect ratio for general cropping unless user wants square
-    const [aspect, setAspect] = useState<number | undefined>(undefined);
-
     const handleApplyCrop = async () => {
         if (!selectedImage || !completedCrop || !imgRef.current) return;
 
         setIsSaving(true);
         try {
-            // Convert pixels to relative for backend safety (though backend handles relative better if we send relative)
-            // But checking my API implementation:
-            // const left = Math.round(bbox.x * metadata.width);
-            // So API expects x, y, w, h as 0-1 or pixels?
-            // "bbox": { "x": 0.1, "y": 0.2, "w": 0.6, "h": 0.7 } -> API implementation used relative:
-            // const left = Math.round(bbox.x * metadata.width);
-
-            // So I need to send relative coordinates.
             const image = imgRef.current;
             const bbox = {
                 x: completedCrop.x / image.width,
@@ -86,100 +159,119 @@ export function CropClient({ projectId, images }: CropClientProps) {
                 h: completedCrop.height / image.height
             };
 
-            const res = await fetch(`/api/projects/${projectId}/crop/apply`, {
-                method: 'POST',
+            const res = await fetch(`/api/projects/${projectId}/crop/variant/create`, {
+                method: 'POST', // Now creates a new variant
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     imageId: selectedImage.id,
-                    bbox
+                    bbox,
+                    source: 'manual'
                 })
             });
 
             if (!res.ok) throw new Error('Failed to crop');
 
-            toast.success('Image cropped');
-            router.refresh(); // Refresh to update list and counts
+            toast.success('New crop variant created');
 
-            // Optimistically update current image status if we don't switch
-            // But refresh should handle it.
-
-        } catch (error) {
-            console.error(error);
-            toast.error('Failed to crop image');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleResetCrop = async () => {
-        if (!selectedImage) return;
-        if (!selectedImage.isCropped) return;
-
-        setIsSaving(true);
-        try {
-            const res = await fetch(`/api/projects/${projectId}/crop/reset`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    imageId: selectedImage.id
-                })
-            });
-
-            if (!res.ok) throw new Error('Failed to reset crop');
-
-            toast.success('Crop reset');
+            // Refresh variants locally and router (for stats/badging)
+            await fetchVariants();
             router.refresh();
 
-            // Clear crop selection if any
             setCrop(undefined);
             setCompletedCrop(undefined);
 
         } catch (error) {
             console.error(error);
-            toast.error('Failed to reset crop');
+            toast.error('Failed to create crop variant');
         } finally {
             setIsSaving(false);
         }
     };
 
-    // Auto-select first image if none selected
-    useEffect(() => {
-        if (!selectedImage && images.length > 0) {
-            setSelectedImage(images[0]);
-        }
-    }, [images, selectedImage]);
+    const handleRefresh = async () => {
+        await fetchVariants();
+        router.refresh();
+    };
 
-    // When selecting a new image, reset crop
-    useEffect(() => {
-        setCrop(undefined);
-        setCompletedCrop(undefined);
-    }, [selectedImage]);
+    const handleStartAutoCrop = async () => {
+        setIsAutoCropping(true);
+        try {
+            const res = await fetch(`/api/projects/${projectId}/crop/auto/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mode: 'auto'
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to start auto crop');
+
+            const data = await res.json();
+            setAutoCropJobId(data.jobId);
+            toast.info('Auto Crop job started...');
+
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to start auto crop');
+            setIsAutoCropping(false);
+        }
+    };
+
+    // Helper to Create Map
+    const imageMap = images.reduce((acc, img) => {
+        acc[img.id] = img.rawUrl;
+        return acc;
+    }, {} as Record<string, string>);
 
     return (
         <div className="flex h-[calc(100vh-140px)] gap-6">
             {/* Left Panel: Editor */}
             <div className="flex-1 flex flex-col bg-card rounded-lg border shadow-sm overflow-hidden">
-                <div className="p-4 border-b flex justify-between items-center">
+                <div className="p-4 border-b flex justify-between items-center bg-muted/20">
                     <h3 className="font-semibold flex items-center gap-2">
                         <Scissors className="w-4 h-4" />
                         Crop Editor
                     </h3>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                        {/* Auto Crop Button */}
                         <Button
-                            variant="outline"
+                            variant="secondary"
                             size="sm"
-                            onClick={handleResetCrop}
-                            disabled={!selectedImage?.isCropped || isSaving}
+                            onClick={handleStartAutoCrop}
+                            disabled={isAutoCropping}
+                            className={cn(isAutoCropping && "opacity-80")}
                         >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Reset
+                            {isAutoCropping ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4 mr-2 text-purple-500" />
+                                    Auto Crop
+                                </>
+                            )}
                         </Button>
+
+                        <div className="w-[1px] h-6 bg-border mx-1"></div>
+
+                        {variants.length > 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsManageModalOpen(true)}
+                            >
+                                <Settings2 className="w-4 h-4 mr-2" />
+                                Manage ({variants.length})
+                            </Button>
+                        )}
                         <Button
                             size="sm"
                             onClick={handleApplyCrop}
                             disabled={!completedCrop || isSaving}
                         >
-                            Apply Crop
+                            {variants.length > 0 ? 'Add New Crop' : 'Apply Crop'}
                         </Button>
                     </div>
                 </div>
@@ -190,7 +282,6 @@ export function CropClient({ projectId, images }: CropClientProps) {
                             crop={crop}
                             onChange={(_, percentCrop) => setCrop(percentCrop)}
                             onComplete={(c) => setCompletedCrop(c)}
-                            aspect={aspect}
                             className="max-h-full"
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -207,9 +298,24 @@ export function CropClient({ projectId, images }: CropClientProps) {
                     )}
                 </div>
 
-                <div className="p-4 border-t bg-muted/10 text-xs text-muted-foreground">
-                    {selectedImage?.id}
-                    {selectedImage?.isCropped && <span className="ml-2 text-green-600 font-medium">(Cropped)</span>}
+                <div className="p-4 border-t bg-muted/10 text-xs text-muted-foreground flex justify-between">
+                    <div>
+                        {selectedImage?.id}
+                        {variants.length > 0 && (
+                            <span className="ml-2 text-green-600 font-medium">({variants.length} variants)</span>
+                        )}
+                    </div>
+                    {/* Mini thumbnails of crops */}
+                    <div className="flex gap-1">
+                        {variants.slice(0, 5).map(v => (
+                            <div key={v.file} title={v.file} className={cn(
+                                "w-6 h-6 relative rounded overflow-hidden border",
+                                activeCropFile === v.file ? "border-primary" : "border-transparent"
+                            )}>
+                                {v.url && <Image src={v.url} alt={v.file} fill className="object-cover" />}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -267,6 +373,27 @@ export function CropClient({ projectId, images }: CropClientProps) {
                     </Button>
                 </div>
             </div>
+
+            {selectedImage && (
+                <ManageCropsModal
+                    isOpen={isManageModalOpen}
+                    onClose={() => setIsManageModalOpen(false)}
+                    projectId={projectId}
+                    imageId={selectedImage.id}
+                    variants={variants}
+                    activeCrop={activeCropFile}
+                    onUpdate={handleRefresh}
+                />
+            )}
+
+            <ReviewAutoCropModal
+                isOpen={isReviewModalOpen}
+                onClose={() => setIsReviewModalOpen(false)}
+                projectId={projectId}
+                proposals={autoCropProposals}
+                imageMap={imageMap}
+                onApply={handleRefresh}
+            />
         </div>
     );
 }

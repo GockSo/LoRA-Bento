@@ -61,17 +61,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     // item.path is absolute path to raw file
                     const fileBaseName = path.basename(item.path, path.extname(item.path)); // Name without extension
 
-                    // Check for cropped version
+
+                    // Check for active crop in new multi-crop structure
                     const filename = path.basename(item.path);
-                    const croppedPath = path.join(projectDir, 'cropped', filename);
+                    const cropDir = path.join(projectDir, 'cropped', filename);
+                    const metaPath = path.join(cropDir, 'meta.json');
                     let sourcePath = item.path;
 
                     try {
-                        await fs.access(croppedPath);
-                        sourcePath = croppedPath;
+                        // Check if crop directory and meta exist
+                        await fs.access(metaPath);
+                        const metaContent = await fs.readFile(metaPath, 'utf-8');
+                        const meta = JSON.parse(metaContent);
+
+                        if (meta.activeCrop) {
+                            sourcePath = path.join(cropDir, meta.activeCrop);
+                        }
                     } catch {
-                        // Keep using raw path
+                        // Fallback: Check for legacy flat crop file (backward compatibility)
+                        /* 
+                        try {
+                            const legacyCropPath = path.join(projectDir, 'cropped', filename);
+                            const stat = await fs.stat(legacyCropPath);
+                             if (stat.isFile()) {
+                                sourcePath = legacyCropPath;
+                            }
+                        } catch {}
+                        */
+                        // Actually, logic above handles raw fallback if crop fails.
+                        // If we want legacy support, we can add it, but for v2 we can assume new structure
+                        // or just rely on raw if no meta.
                     }
+
 
                     // NEW: Subfolder per raw image
                     const itemAugDir = path.join(augDir, `${fileBaseName}_aug`);

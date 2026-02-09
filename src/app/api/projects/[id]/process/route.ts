@@ -59,17 +59,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             console.log(`Starting processing job ${jobId} for project ${id}`);
             let processedCount = 0;
 
+
             for (const item of itemsToProcess) {
                 // Update item status to processing
                 itemStates[item.id] = { status: 'processing' };
+
                 await fs.writeFile(jobPath, JSON.stringify({
                     ...initialJobState,
                     progress: { processed: processedCount, total: itemsToProcess.length },
                     results: itemStates
                 }, null, 2));
 
+
                 try {
+                    // Determine source path
+                    let sourcePath = item.path;
+
+                    // If item is raw, check for crop
+                    if (item.stage === 'raw') {
+                        const filename = path.basename(item.path);
+                        const cropDir = path.join(projectDir, 'cropped', filename);
+                        const metaPath = path.join(cropDir, 'meta.json');
+                        try {
+                            await fs.access(metaPath);
+                            const metaContent = await fs.readFile(metaPath, 'utf-8');
+                            const meta = JSON.parse(metaContent);
+                            if (meta.activeCrop) {
+                                sourcePath = path.join(cropDir, meta.activeCrop);
+                            }
+                        } catch {
+                            // No crop or meta, stick to raw
+                        }
+                    }
+
                     // Output name: if item is 'aug_foo.png' -> 'aug_foo.png' (in processed)
+
                     // if item is 'foo.png' (raw) -> 'foo.png' (in processed)
                     // Wait, if Aug items have unique names, we are good.
                     // Manifest item has `displayName` or base `path`.
