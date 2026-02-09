@@ -5,30 +5,27 @@ import { Button, Card, Progress } from '@/components/ui/core';
 import { Download, Tag, FileArchive, CheckCircle2, AlertCircle, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface SummaryData {
-    rawCount: number;
-    augCount: number;
-    totalCount: number;
-    excludedCount: number;
-    sourceStage: 'processed' | 'raw+aug';
-    hasCaptions: boolean;
-    mode: 'tags' | 'sentence';
-    keywordStats: {
-        top: { keyword: string; count: number }[];
-        rare: { keyword: string; count: number }[];
+interface TrainDataStats {
+    trainData: {
+        images: number;
+        captions: number;
+        totalFiles: number;
     };
+    topTags: { tag: string; count: number }[];
+    mode: 'tags' | 'sentence';
     samples?: string[];
+    source: string;
 }
 
 export default function ExportPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const [summary, setSummary] = useState<SummaryData | null>(null);
+    const [summary, setSummary] = useState<TrainDataStats | null>(null);
     const [loading, setLoading] = useState(true);
 
     const fetchSummary = async (recompute = false) => {
         setLoading(true);
         try {
-            const url = `/api/projects/${id}/training-set/summary${recompute ? '?recompute=true' : ''}`;
+            const url = `/api/projects/${id}/train-data/stats`;
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
@@ -58,7 +55,7 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
 
     if (!summary) return <div>Failed to load dataset details.</div>;
 
-    const topKeywords = summary.keywordStats.top.slice(0, 24);
+    const topTags = summary.topTags.slice(0, 24);
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-20">
@@ -87,15 +84,15 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
                             </span>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {topKeywords.length > 0 ? topKeywords.map(({ keyword, count }) => (
-                                <div key={keyword} className="bg-secondary/50 text-secondary-foreground border px-2 py-1 rounded text-sm flex items-center gap-2 transition-colors hover:bg-secondary">
-                                    <span>{keyword}</span>
+                            {topTags.length > 0 ? topTags.map(({ tag, count }) => (
+                                <div key={tag} className="bg-secondary/50 text-secondary-foreground border px-2 py-1 rounded text-sm flex items-center gap-2 transition-colors hover:bg-secondary">
+                                    <span>{tag}</span>
                                     <span className="text-[10px] opacity-60 font-mono">{count}</span>
                                 </div>
                             )) : (
                                 <div className="py-8 text-center w-full">
-                                    <p className="text-sm text-muted-foreground">No captions found in training set.</p>
-                                    <p className="text-xs text-muted-foreground/60">Complete Step 4 to generate keywords.</p>
+                                    <p className="text-sm text-muted-foreground">No captions found in train_data.</p>
+                                    <p className="text-xs text-muted-foreground/60">Run Step 5 Captioning first.</p>
                                 </div>
                             )}
                         </div>
@@ -117,40 +114,7 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
                         </Card>
                     )}
 
-                    <Card className="p-6 bg-slate-50/50 dark:bg-slate-950/20">
-                        <h3 className="font-semibold mb-4">Training Set Breakdown</h3>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase font-bold">Raw Images</p>
-                                    <p className="text-2xl font-mono">{summary.rawCount}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase font-bold">Augmented</p>
-                                    <p className="text-2xl font-mono">{summary.augCount}</p>
-                                </div>
-                            </div>
 
-                            <div className="pt-4 border-t">
-                                <div className="flex justify-between items-end mb-1">
-                                    <p className="text-sm font-medium">Ready for Training</p>
-                                    <p className="text-sm font-mono font-bold text-primary">{summary.totalCount} total</p>
-                                </div>
-                                <Progress value={100} className="h-2" />
-                                <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                                    Source: <span className="font-semibold">{summary.sourceStage === 'processed' ? 'Processed Folder (Optimized)' : 'Raw + Augmented'}</span>
-                                </p>
-                            </div>
-
-                            {summary.excludedCount > 0 && (
-                                <p className="text-[10px] text-orange-600 dark:text-orange-400 flex items-center gap-1 bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
-                                    <AlertCircle className="h-3 w-3" />
-                                    {summary.excludedCount} images excluded from training set via manifest.
-                                </p>
-                            )}
-                        </div>
-                    </Card>
                 </div>
 
                 {/* Export Column */}
@@ -167,22 +131,22 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
                         <div className="bg-background/80 rounded-lg p-4 mb-6 space-y-3 border shadow-inner">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Images (.png/.jpg)</span>
-                                <span className="font-mono font-bold">{summary.totalCount}</span>
+                                <span className="font-mono font-bold">{summary.trainData.images}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Captions (.txt)</span>
-                                <span className="font-mono font-bold">{summary.hasCaptions ? summary.totalCount : 0}</span>
+                                <span className="font-mono font-bold">{summary.trainData.captions}</span>
                             </div>
                             <div className="border-t pt-2 flex justify-between text-sm font-bold">
                                 <span>Total Files in ZIP</span>
-                                <span className="font-mono text-primary">{(summary.totalCount * (summary.hasCaptions ? 2 : 1)) + 1}</span>
+                                <span className="font-mono text-primary">{summary.trainData.totalFiles + 1}</span>
                             </div>
                         </div>
 
-                        {!summary.hasCaptions && (
+                        {summary.trainData.captions === 0 && (
                             <div className="mb-6 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
                                 <AlertCircle className="h-4 w-4 shrink-0" />
-                                <p>Captions missing. Export will only contain images unless you complete Step 5. but if you ok can export without captions </p>
+                                <p>Captions missing. Export will only contain images unless you complete Step 5 Captioning.</p>
                             </div>
                         )}
 
@@ -195,7 +159,7 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
                                     new Promise((resolve) => setTimeout(resolve, 2000)),
                                     {
                                         loading: 'Generating ZIP archive...',
-                                        success: `Exporting ${summary.totalCount} images + ${summary.hasCaptions ? summary.totalCount : 0} captions`,
+                                        success: `Exporting ${summary.trainData.images} images + ${summary.trainData.captions} captions`,
                                         error: 'Export failed'
                                     }
                                 );
