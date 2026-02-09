@@ -1,17 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
-import { isDirty, fetchTags } from '@/lib/git';
+import { isDirty, fetchTags, hasStagedChanges, getUntrackedFiles } from '@/lib/git';
 
 export async function POST(req: NextRequest) {
     const body = await req.json();
     const { mode, tag } = body;
 
     if (!mode || (mode === 'tag' && !tag)) {
-        return NextResponse.json({ error: 'Missing mode or tag' }, { status: 400 });
+        const error = { ok: false, code: 'INVALID_REQUEST', error: 'Missing mode or tag' };
+        console.error('[Update/Apply] Invalid request:', error);
+        return NextResponse.json(error, { status: 400 });
     }
 
-    if (await isDirty()) {
-        return NextResponse.json({ error: 'Working directory is dirty. Please commit or stash changes first.' }, { status: 400 });
+    // Check for uncommitted changes (tracked files or staged changes)
+    const [dirty, staged, untrackedFiles] = await Promise.all([
+        isDirty(),
+        hasStagedChanges(),
+        getUntrackedFiles()
+    ]);
+
+    if (dirty || staged) {
+        const error = {
+            ok: false,
+            code: 'DIRTY_REPO',
+            error: 'Working directory has uncommitted changes. Please commit or stash changes first.',
+            details: {
+                hasModifiedFiles: dirty,
+                hasStagedChanges: staged,
+                untrackedFiles: untrackedFiles.slice(0, 10) // Limit to first 10 files
+            }
+        };
+        console.error('[Update/Apply] Repository is dirty:', {
+            code: error.code,
+            hasModifiedFiles: dirty,
+            hasStagedChanges: staged,
+            untrackedFileCount: untrackedFiles.length
+        });
+        return NextResponse.json(error, { status: 400 });
     }
 
     const encoder = new TextEncoder();
@@ -41,7 +66,12 @@ export async function POST(req: NextRequest) {
                 send('DONE'); // Signal completion
                 controller.close();
             } catch (error: any) {
-                send(`Error: ${error.message}`);
+                const errorMsg = `Error: ${error.message}`;
+                console.error('[Update/Apply] Update failed:', {
+                    error: error.message,
+                    stack: error.stack
+                });
+                send(errorMsg);
                 controller.close();
             }
         }

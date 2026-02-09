@@ -35,12 +35,14 @@ export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps
     const [logs, setLogs] = useState<string[]>([]);
     const [completed, setCompleted] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [untrackedWarning, setUntrackedWarning] = useState<string | null>(null);
 
     const handleUpdate = async (mode: 'tag' | 'pull') => {
         setUpdating(true);
         setLogs([]);
         setError(null);
         setCompleted(false);
+        setUntrackedWarning(null);
 
         try {
             const res = await fetch('/api/update/apply', {
@@ -53,8 +55,19 @@ export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps
             });
 
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Update failed');
+                // Always parse JSON response even on error
+                const data = await res.json().catch(() => null);
+                const errorMsg = data?.error || data?.message || res.statusText;
+
+                // Log error details to console for debugging
+                console.error('[Update] API error:', {
+                    status: res.status,
+                    code: data?.code,
+                    error: errorMsg,
+                    details: data?.details
+                });
+
+                throw new Error(errorMsg);
             }
 
             const reader = res.body?.getReader();
@@ -134,6 +147,13 @@ export function UpdateModal({ open, onOpenChange, updateInfo }: UpdateModalProps
                                 {t('update.warning')}
                             </p>
                         </div>
+
+                        {error && (
+                            <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md flex items-start gap-2 text-xs text-red-800 dark:text-red-200">
+                                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                                <p>{error}</p>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-4 py-4">

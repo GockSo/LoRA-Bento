@@ -59,10 +59,29 @@ export async function isInsideWorkTree(): Promise<boolean> {
 
 export async function isDirty(): Promise<boolean> {
     try {
-        const { stdout } = await runGit(['status', '--porcelain']);
+        // Only check for modified/deleted tracked files, ignore untracked files
+        const { stdout } = await runGit(['status', '--porcelain', '--untracked-files=no']);
         return stdout.length > 0;
     } catch {
         return true; // Assume dirty on error for safety
+    }
+}
+
+export async function getUntrackedFiles(): Promise<string[]> {
+    try {
+        const { stdout } = await runGit(['ls-files', '--others', '--exclude-standard']);
+        return stdout.split('\n').filter(Boolean);
+    } catch {
+        return [];
+    }
+}
+
+export async function hasStagedChanges(): Promise<boolean> {
+    try {
+        const { stdout } = await runGit(['diff', '--cached', '--name-only']);
+        return stdout.length > 0;
+    } catch {
+        return false;
     }
 }
 
