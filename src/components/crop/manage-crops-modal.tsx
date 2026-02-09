@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/core';
 import { Trash2, Check, Star } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils'; // Assuming utils exists
+import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface CropVariant {
     file: string;
@@ -29,10 +30,11 @@ interface ManageCropsModalProps {
 }
 
 export function ManageCropsModal({ isOpen, onClose, projectId, imageId, variants, activeCrop, onUpdate }: ManageCropsModalProps) {
+    const { t } = useTranslation('common');
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleDelete = async (variantFile: string) => {
-        if (!confirm('Are you sure you want to delete this crop variant?')) return;
+        if (!confirm(t('crop.delete_variant_confirm'))) return;
 
         setIsProcessing(true);
         try {
@@ -75,13 +77,13 @@ export function ManageCropsModal({ isOpen, onClose, projectId, imageId, variants
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle>Manage Crops: {imageId}</DialogTitle>
+                    <DialogTitle>{t('crop.manage_title', { name: imageId })}</DialogTitle>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto min-h-[300px] p-2">
                     {variants.length === 0 ? (
                         <div className="text-center text-muted-foreground py-10">
-                            No crop variants found.
+                            {t('crop.no_variants')}
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -103,14 +105,11 @@ export function ManageCropsModal({ isOpen, onClose, projectId, imageId, variants
                                                     alt={v.file}
                                                     fill
                                                     className="object-contain"
-                                                    unoptimized // Important for local blob/api serving sometimes, but here we want next image optim? Actually API serves headers.
-                                                // Actually, "unoptimized" might be safer for API routes if Next tries to optimize them again.
-                                                // But let's try without first or with unoptimized=true to be safe given the dynamic nature.
-                                                // Given we put cache control headers, let's let browser handle it.
+                                                    unoptimized
                                                 />
                                             ) : (
                                                 <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                                                    No Preview
+                                                    {t('crop.no_preview')}
                                                 </div>
                                             )}
 
@@ -133,7 +132,7 @@ export function ManageCropsModal({ isOpen, onClose, projectId, imageId, variants
                                                     variant="ghost"
                                                     className="h-6 w-6"
                                                     onClick={() => handleSetActive(v.file)}
-                                                    title="Set Active"
+                                                    title={t('actions.set_active')}
                                                     disabled={isProcessing}
                                                 >
                                                     <Star className="w-3 h-3" />
@@ -144,7 +143,7 @@ export function ManageCropsModal({ isOpen, onClose, projectId, imageId, variants
                                                 variant="ghost"
                                                 className="h-6 w-6 text-destructive hover:text-destructive"
                                                 onClick={() => handleDelete(v.file)}
-                                                title="Delete"
+                                                title={t('actions.delete')}
                                                 disabled={isProcessing}
                                             >
                                                 <Trash2 className="w-3 h-3" />

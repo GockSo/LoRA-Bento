@@ -7,8 +7,10 @@ import { AlertTriangle, Eye, EyeOff, Layers, Zap, Play, RotateCw } from 'lucide-
 import { useRouter } from 'next/navigation';
 import { DuplicateManager } from '@/components/qa/duplicate-manager';
 import { BlurryManager } from '@/components/qa/blurry-manager';
+import { useTranslation } from 'react-i18next';
 
 export default function ImportPage({ params }: { params: Promise<{ id: string }> }) {
+    const { t } = useTranslation('common');
     const { id } = use(params);
     const projectId = id;
     const router = useRouter();
@@ -126,26 +128,26 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Import Images</h1>
-                    <p className="text-muted-foreground">Drag and drop images to analyze and import.</p>
+                    <h1 className="text-2xl font-bold">{t('raw.title')}</h1>
+                    <p className="text-muted-foreground">{t('raw.desc')}</p>
                 </div>
                 <div className="flex gap-4 items-center">
                     {/* Progress Indicator */}
                     {isQAJobRunning && (
                         <div className="flex items-center text-primary text-sm bg-primary/10 px-3 py-1.5 rounded-full animate-pulse">
                             <RotateCw className="w-4 h-4 mr-2 animate-spin" />
-                            Analyzing... {qaProgress}
+                            {t('raw.analyzing')} {qaProgress}
                         </div>
                     )}
 
                     {!isQAJobRunning && items.length > 0 && (
                         <Button size="sm" variant="outline" onClick={runQA}>
-                            <Play className="w-4 h-4 mr-2" /> Re-Scan QA
+                            <Play className="w-4 h-4 mr-2" /> {t('raw.rescan')}
                         </Button>
                     )}
 
                     <div className="text-sm text-muted-foreground border-l pl-4 ml-2">
-                        Total: {stats.total}
+                        {t('raw.total')} {stats.total}
                     </div>
                 </div>
             </div>
@@ -162,7 +164,7 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
 
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold">Library</h2>
+                    <h2 className="text-lg font-semibold">{t('raw.library')}</h2>
                 </div>
 
                 {items.length > 0 ? (
@@ -181,12 +183,12 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
                                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                                     {img.flags?.isDuplicate && (
                                         <span className="bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center">
-                                            <Layers className="w-3 h-3 mr-1" /> DUP
+                                            <Layers className="w-3 h-3 mr-1" /> {t('raw.duplicate_short')}
                                         </span>
                                     )}
                                     {img.flags?.isBlurry && (
                                         <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center">
-                                            <Zap className="w-3 h-3 mr-1" /> BLUR
+                                            <Zap className="w-3 h-3 mr-1" /> {t('raw.blur_short')}
                                         </span>
                                     )}
                                 </div>
@@ -210,9 +212,9 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
                                         onClick={() => toggleExclude(img.displayName, !!img.excluded)}
                                     >
                                         {img.excluded ? (
-                                            <> <Eye className="w-3 h-3 mr-1" /> Restore </>
+                                            <> <Eye className="w-3 h-3 mr-1" /> {t('raw.restore')} </>
                                         ) : (
-                                            <> <EyeOff className="w-3 h-3 mr-1" /> Exclude </>
+                                            <> <EyeOff className="w-3 h-3 mr-1" /> {t('raw.exclude')} </>
                                         )}
                                     </Button>
                                     {/* Quick Delete */}
@@ -222,7 +224,7 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
                     </div>
                 ) : (
                     <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/5">
-                        No images imported yet.
+                        {t('raw.no_images')}
                     </div>
                 )}
             </div>

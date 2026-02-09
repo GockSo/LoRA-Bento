@@ -72,15 +72,7 @@ export default async function CropPage({
     }));
 
     return (
-        <div className="space-y-6 h-full flex flex-col">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Crop Images</h1>
-                <p className="text-muted-foreground">
-                    Optionally crop images to focus on the subject.
-                    Cropped versions will be preferred for augmentation.
-                </p>
-            </div>
-
+        <div className="h-full flex flex-col">
             <CropClient projectId={id} images={images} project={project} />
         </div>
     );

@@ -7,19 +7,13 @@ import { Button } from '@/components/ui/core';
 import { Badge } from '@/components/ui/badge';
 import { Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface Proposal {
     file: string; // imageId
     bbox: { x: number; y: number; w: number; h: number };
     confidence: number;
     label: string;
-    // We need logic to show the preview. 
-    // We can show the raw image with an SVG overlay, or just a generic placeholder if we can't easily crop on client.
-    // Better: Show raw image with overlay.
-    // But we need the URL for the raw image.
-    // The proposal only has filename. 
-    // We can construct `/api/images?path=...` if we passed project ID and made the path absolute, but client doesn't know absolute path.
-    // We can rely on the parent component to provide a lookup map of imageId -> rawUrl.
 }
 
 interface ReviewAutoCropModalProps {
@@ -32,6 +26,7 @@ interface ReviewAutoCropModalProps {
 }
 
 export function ReviewAutoCropModal({ isOpen, onClose, projectId, proposals, imageMap, onApply }: ReviewAutoCropModalProps) {
+    const { t } = useTranslation('common');
     const [isApplying, setIsApplying] = useState(false);
     const [selectedProposals, setSelectedProposals] = useState<Set<number>>(new Set(proposals.map((_, i) => i))); // Default select all
 
@@ -84,7 +79,7 @@ export function ReviewAutoCropModal({ isOpen, onClose, projectId, proposals, ima
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle>Review Auto Crop Proposals ({proposals.length})</DialogTitle>
+                    <DialogTitle>{t('crop.review_auto_title', { count: proposals.length })}</DialogTitle>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto min-h-[400px] p-2">
@@ -113,7 +108,7 @@ export function ReviewAutoCropModal({ isOpen, onClose, projectId, proposals, ima
                                                 />
                                             </div>
                                         ) : (
-                                            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">No Preview</div>
+                                            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">{t('crop.no_preview')}</div>
                                         )}
 
                                         <div className="absolute top-2 right-2 z-20">
@@ -137,13 +132,13 @@ export function ReviewAutoCropModal({ isOpen, onClose, projectId, proposals, ima
 
                 <DialogFooter className="flex justify-between items-center border-t p-2">
                     <div className="text-sm text-muted-foreground">
-                        {selectedProposals.size} selected
+                        {t('crop.selected_count', { count: selectedProposals.size })}
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={onClose}>Cancel</Button>
+                        <Button variant="outline" onClick={onClose}>{t('actions.cancel')}</Button>
                         <Button onClick={handleApplySelected} disabled={isApplying || selectedProposals.size === 0}>
                             {isApplying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                            Apply Selected
+                            {t('crop.apply_selected')}
                         </Button>
                     </div>
                 </DialogFooter>

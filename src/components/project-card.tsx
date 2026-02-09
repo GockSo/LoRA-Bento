@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/core';
 import { Input } from '@/components/ui/core';
 import { FolderOpen, FileText, Pencil, Trash2, Download, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import {
     Dialog,
     DialogContent,
@@ -16,7 +17,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
 
 interface ProjectCardProps {
@@ -25,6 +25,7 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project }: ProjectCardProps) {
     const router = useRouter();
+    const { t } = useTranslation('common');
     const [isRenameOpen, setIsRenameOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [newName, setNewName] = useState(project.name);
@@ -68,7 +69,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             router.refresh();
         } catch (error) {
             console.error(error);
-            alert('Failed to rename project');
+            alert(t('errors.rename_failed'));
         } finally {
             setIsRenaming(false);
         }
@@ -85,7 +86,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             router.refresh(); // This might delay if UI doesn't optimistically remove.
         } catch (error) {
             console.error(error);
-            alert('Failed to delete project');
+            alert(t('errors.delete_failed'));
             setIsDeleting(false);
         }
     };
@@ -118,7 +119,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             a.remove();
         } catch (error) {
             console.error(error);
-            alert('Failed to export project');
+            alert(t('errors.export_failed'));
         } finally {
             setIsExporting(false);
         }
@@ -132,17 +133,17 @@ export function ProjectCard({ project }: ProjectCardProps) {
                         <div className="min-w-0 flex-1">
                             <CardTitle className="truncate" title={project.name}>{project.name}</CardTitle>
                             <CardDescription>
-                                Updated {formatDistanceToNow(new Date(project.updatedAt))} ago
+                                {t('dashboard.col_updated')} {formatDistanceToNow(new Date(project.updatedAt))} ago
                             </CardDescription>
                         </div>
                         <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsRenameOpen(true)} title="Rename">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsRenameOpen(true)} title={t('dashboard.context_rename')}>
                                 <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExport} disabled={isExporting} title="Export ZIP">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExport} disabled={isExporting} title={t('dashboard.context_export')}>
                                 {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setIsDeleteOpen(true)} title="Delete">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setIsDeleteOpen(true)} title={t('dashboard.context_delete')}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>
@@ -151,23 +152,23 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 <CardContent className="flex-1 pb-2">
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                         <div className="flex justify-between">
-                            <span>Total Images</span>
+                            <span>{t('dashboard.stats_total')}</span>
                             <span className="font-medium">{project.stats.total}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span>Augmented</span>
+                            <span>{t('sidebar.augmented')}</span>
                             <span className="font-medium">{project.stats.augmented}</span>
                         </div>
                         <div className="flex items-center gap-2 col-span-2">
                             <FileText className="h-4 w-4" />
-                            <span>{project.stats.captions} Captioned</span>
+                            <span>{project.stats.captions} {t('dashboard.stats_captioned')}</span>
                         </div>
 
                         {/* Training Progress */}
                         {trainingStatus?.status === 'running' && (
                             <div className="col-span-2 space-y-1 mt-2 p-2 bg-muted/50 rounded-md">
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-primary font-medium animate-pulse">Training...</span>
+                                    <span className="text-primary font-medium animate-pulse">{t('actions.training')}...</span>
                                     <span>{trainingStatus.progress.percent}%</span>
                                 </div>
                                 <Progress value={trainingStatus.progress.percent} className="h-1.5" />
@@ -182,7 +183,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                     <Button asChild className="w-full">
                         <Link href={`/projects/${project.id}/raw`}>
                             <FolderOpen className="mr-2 h-4 w-4" />
-                            Open Project
+                            {t('dashboard.context_open')}
                         </Link>
                     </Button>
                 </CardFooter>
@@ -191,9 +192,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Rename Project</DialogTitle>
+                        <DialogTitle>{t('dashboard.context_rename')}</DialogTitle>
                         <DialogDescription>
-                            Enter a new name for this project.
+                            {t('dashboard.rename_desc')}
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleRename}>
@@ -202,15 +203,15 @@ export function ProjectCard({ project }: ProjectCardProps) {
                                 id="name"
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
-                                placeholder="Project Name"
+                                placeholder={t('dashboard.col_name')}
                                 autoFocus
                             />
                         </div>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsRenameOpen(false)}>Cancel</Button>
+                            <Button type="button" variant="outline" onClick={() => setIsRenameOpen(false)}>{t('actions.cancel')}</Button>
                             <Button type="submit" disabled={isRenaming}>
                                 {isRenaming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Save
+                                {t('actions.save')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -220,16 +221,16 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Delete Project?</DialogTitle>
+                        <DialogTitle>{t('dashboard.context_delete')}?</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete <strong>{project.name}</strong>? This action cannot be undone and will permanently remove all files.
+                            {t('dashboard.delete_confirm_desc', { name: project.name })}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>{t('actions.cancel')}</Button>
                         <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
                             {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Delete Project
+                            {t('actions.delete')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

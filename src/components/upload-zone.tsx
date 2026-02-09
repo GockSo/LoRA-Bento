@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/core';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface UploadZoneProps {
     projectId: string;
@@ -12,6 +13,7 @@ interface UploadZoneProps {
 }
 
 export function UploadZone({ projectId, onUploadComplete }: UploadZoneProps) {
+    const { t } = useTranslation('common');
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const router = useRouter();
@@ -51,7 +53,7 @@ export function UploadZone({ projectId, onUploadComplete }: UploadZoneProps) {
         );
 
         if (validFiles.length === 0) {
-            alert('No valid image files found.');
+            alert(t('errors.no_valid_images'));
             setIsUploading(false);
             return;
         }
@@ -77,7 +79,7 @@ export function UploadZone({ projectId, onUploadComplete }: UploadZoneProps) {
             router.refresh();
         } catch (error) {
             console.error(error);
-            alert('Failed to upload images.');
+            alert(t('errors.upload_failed'));
         } finally {
             setIsUploading(false);
         }
@@ -110,15 +112,15 @@ export function UploadZone({ projectId, onUploadComplete }: UploadZoneProps) {
             )}
 
             <h3 className="text-lg font-semibold mb-1">
-                {isUploading ? 'Uploading...' : 'Drop images here'}
+                {isUploading ? t('raw.uploading') : t('raw.drop_images')}
             </h3>
             <p className="text-sm text-muted-foreground mb-4 text-center">
-                or click to browse from your computer
+                {t('raw.drop_desc')}
             </p>
 
             {!isUploading && (
                 <Button variant="secondary" onClick={() => document.getElementById('file-upload')?.click()}>
-                    Select Files
+                    {t('raw.select_files')}
                 </Button>
             )}
         </div>

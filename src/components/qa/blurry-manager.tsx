@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { ManifestItem } from '@/types';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface BlurryManagerProps {
     projectId: string;
@@ -20,6 +21,7 @@ interface BlurryManagerProps {
 }
 
 export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps) {
+    const { t } = useTranslation('common');
     const [isOpen, setIsOpen] = useState(false);
     const [viewingItem, setViewingItem] = useState<ManifestItem | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -115,18 +117,18 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                     <div className="flex items-center gap-2 text-orange-600">
                         <Zap className="h-5 w-5" />
                         <div>
-                            <div className="font-semibold text-sm">Blurry Images Detected</div>
-                            <div className="text-xs opacity-80">{blurryItems.length} images might be blurry.</div>
+                            <div className="font-semibold text-sm">{t('qa.blur_title')}</div>
+                            <div className="text-xs opacity-80">{t('qa.blur_found', { count: blurryItems.length })}</div>
                         </div>
                     </div>
                     <Button variant="outline" size="sm" className="bg-background text-orange-600 hover:text-orange-700 border-orange-200">
-                        Review
+                        {t('actions.review')}
                     </Button>
                 </div>
             </DialogTrigger>
             <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
                 <DialogHeader className="flex flex-row items-center justify-between border-b pb-4">
-                    <DialogTitle>Review Blurry Images</DialogTitle>
+                    <DialogTitle>{t('qa.blur_review_title')}</DialogTitle>
                     <div className="text-sm font-mono text-muted-foreground mr-8">
                         {selectedIndex + 1} / {blurryItems.length}
                     </div>
@@ -156,20 +158,20 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                                     </Button>
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] p-1 text-center font-mono">
-                                    Score: {Math.round(item.blurScore || 0)}
+                                    {t('qa.blur_score')}: {Math.round(item.blurScore || 0)}
                                 </div>
                             </Card>
                         ))}
                     </div>
                     {blurryItems.length === 0 && (
                         <div className="h-full flex items-center justify-center text-muted-foreground">
-                            No blurry images left!
+                            {t('qa.no_blurry_left')}
                         </div>
                     )}
                 </div>
 
                 <div className="p-2 border-t text-xs text-muted-foreground text-center">
-                    Use <span className="font-mono bg-muted px-1 rounded">←</span> <span className="font-mono bg-muted px-1 rounded">→</span> to navigate, <span className="font-mono bg-muted px-1 rounded">Delete</span> to remove.
+                    {t('qa.blur_help')}
                 </div>
             </DialogContent>
 
@@ -179,14 +181,14 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                     if (!o) setViewingItem(null);
                 }}>
                     <DialogContent className="max-w-screen-xl w-full h-[90vh] bg-black/95 border-none p-0 flex flex-col focus:outline-none" onKeyDown={(e: React.KeyboardEvent) => e.stopPropagation()}>
-                        <DialogTitle className="sr-only">Full Screen Image Viewer</DialogTitle>
+                        <DialogTitle className="sr-only">{t('qa.full_screen_viewer')}</DialogTitle>
                         {/* We prevent propagation so parent dialog doesn't double-handle, but actually our window listener handles it. */}
                         <div className="absolute top-2 right-2 z-50 flex gap-2">
                             <div className="text-white/50 font-mono text-sm self-center mr-4">
                                 {selectedIndex + 1} / {blurryItems.length}
                             </div>
                             <Button variant="destructive" onClick={() => handleDelete(viewingItem.path)}>
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                <Trash2 className="h-4 w-4 mr-2" /> {t('actions.delete')}
                             </Button>
                             <Button variant="secondary" onClick={() => setViewingItem(null)}>
                                 <X className="h-4 w-4" />
@@ -221,7 +223,7 @@ export function BlurryManager({ projectId, items, onUpdate }: BlurryManagerProps
                             </Button>
                         </div>
                         <div className="p-4 text-center text-white/50 font-mono text-sm">
-                            {viewingItem.displayName} — Blur Score: {Math.round(viewingItem.blurScore || 0)}
+                            {viewingItem.displayName} — {t('qa.blur_score')}: {Math.round(viewingItem.blurScore || 0)}
                         </div>
                     </DialogContent>
                 </Dialog>

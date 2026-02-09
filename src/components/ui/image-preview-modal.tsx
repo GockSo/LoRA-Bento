@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Button } from '@/components/ui/core'; // Assuming core exists or use button from ui/button
 import { ChevronLeft, ChevronRight, Check, Trash2, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 // import { VisuallyHidden } from '@radix-ui/react-visually-hidden'; // Module not found, using sr-only class
 
 export interface PreviewImage {
@@ -38,6 +39,7 @@ export function ImagePreviewModal({
     onDelete,
     activeCropFile
 }: ImagePreviewModalProps) {
+    const { t } = useTranslation('common');
     const [isProcessing, setIsProcessing] = useState(false);
 
     const currentImage = images[selectedIndex];
@@ -78,7 +80,7 @@ export function ImagePreviewModal({
 
     const handleDeleteClick = async () => {
         if (!onDelete) return;
-        if (!confirm('Are you sure you want to delete this variant?')) return;
+        if (!confirm(t('crop.delete_variant_confirm'))) return;
         setIsProcessing(true);
         try {
             await onDelete(currentImage.file);
@@ -93,10 +95,10 @@ export function ImagePreviewModal({
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-[90vw] h-[90vh] p-0 gap-0 bg-background/95 backdrop-blur-sm border-none flex flex-col">
                 <span className="sr-only">
-                    <DialogTitle>Image Preview</DialogTitle>
+                    <DialogTitle>{t('crop.preview_title')}</DialogTitle>
                 </span>
                 <span className="sr-only">
-                    <DialogDescription>Preview of crop variants</DialogDescription>
+                    <DialogDescription>{t('crop.preview_desc')}</DialogDescription>
                 </span>
 
                 {/* Header / Top Bar */}
@@ -173,13 +175,13 @@ export function ImagePreviewModal({
                                 disabled={isProcessing}
                             >
                                 <Star className="w-4 h-4 mr-2" />
-                                Set Active
+                                {t('actions.set_active')}
                             </Button>
                         )}
                         {activeCropFile === currentImage.file && (
                             <Button variant="outline" disabled className="bg-primary/10 text-primary border-primary/20">
                                 <Check className="w-4 h-4 mr-2" />
-                                Active
+                                {t('actions.active')}
                             </Button>
                         )}
 

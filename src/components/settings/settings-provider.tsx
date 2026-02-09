@@ -25,6 +25,9 @@ export function useSettings() {
     return context;
 }
 
+import i18n from '@/i18n/client';
+import { I18nextProvider } from 'react-i18next';
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -36,6 +39,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             .then((data) => {
                 setSettings(data);
                 applyTheme(data.theme);
+                // Sync i18n language
+                if (data.language) {
+                    i18n.changeLanguage(data.language);
+                }
             })
             .catch((err) => console.error('Failed to load settings', err));
     }, []);
@@ -63,8 +70,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         // Optimistic update
         const updated = { ...settings, ...newSettings };
         setSettings(updated);
+
         if (newSettings.theme) {
             applyTheme(newSettings.theme);
+        }
+
+        if (newSettings.language) {
+            i18n.changeLanguage(newSettings.language);
         }
 
         try {
@@ -104,7 +116,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
                 isSettingsOpen,
             }}
         >
-            {children}
+            <I18nextProvider i18n={i18n}>
+                {children}
+            </I18nextProvider>
         </SettingsContext.Provider>
     );
 }

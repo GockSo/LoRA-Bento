@@ -1,12 +1,14 @@
-"use client";
+'use client';
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/core';
 import { Upload, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 
 export function ImportProjectButton() {
+    const { t } = useTranslation('common');
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
@@ -40,7 +42,7 @@ export function ImportProjectButton() {
             router.refresh();
         } catch (error) {
             console.error(error);
-            alert(error instanceof Error ? error.message : 'Failed to import project');
+            alert(error instanceof Error ? error.message : t('errors.import_failed'));
         } finally {
             setIsUploading(false);
         }
@@ -57,7 +59,7 @@ export function ImportProjectButton() {
             />
             <Button variant="outline" onClick={handleClick} disabled={isUploading}>
                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Import ZIP
+                {t('dashboard.import_project')}
             </Button>
         </>
     );
