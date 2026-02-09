@@ -15,9 +15,10 @@ import { cn } from '@/lib/utils';
 import { Check, Monitor, Moon, Sun, Github, Copy } from 'lucide-react';
 import { CivitAIIconV2 } from '@/components/icons/brand-icons';
 import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 
 export function SettingsModal() {
-    const { isSettingsOpen, closeSettings, language, theme, setLanguage, setTheme } = useSettings();
+    const { isSettingsOpen, closeSettings, language, theme, setLanguage, setTheme, setOnboardingCompleted } = useSettings();
     const { t } = useTranslation('common');
 
     return (
@@ -132,6 +133,30 @@ export function SettingsModal() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Reset Onboarding - Danger Zone */}
+                    <div className="pt-2">
+                        <div className="rounded-md bg-destructive/10 p-4 border border-destructive/20">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-sm font-medium text-destructive">Reset Onboarding</h4>
+                                    <p className="text-xs text-muted-foreground">Re-run the welcome flow on next launch.</p>
+                                </div>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => {
+                                        setOnboardingCompleted(false);
+                                        toast.success("Onboarding reset! It will appear on next reload.");
+                                    }}
+                                >
+                                    <RefreshCw className="mr-2 h-3 w-3" />
+                                    Reset
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* About / Credits Section */}
                     <div className="space-y-3 pt-4 border-t">
                         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">

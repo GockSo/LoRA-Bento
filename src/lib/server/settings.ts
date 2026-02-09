@@ -5,17 +5,18 @@ import path from 'path';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SETTINGS_FILE = path.join(DATA_DIR, 'app_config.json');
 
-export type Theme = 'light' | 'dark' | 'gockso';
-export type Language = 'en' | 'ja' | 'zh';
+import { Language, Theme } from '@/types/settings';
 
 export interface AppSettings {
     language: Language;
     theme: Theme;
+    onboardingCompleted: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
     language: 'en',
     theme: 'light',
+    onboardingCompleted: false,
 };
 
 async function ensureDataDir() {

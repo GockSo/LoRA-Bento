@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SettingsProvider } from "@/components/settings/settings-provider";
 import { SettingsModal } from "@/components/settings/settings-modal";
+import { OnboardingGate } from "@/components/onboarding/onboarding-gate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,8 +31,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased connection-monitor`}
       >
         <SettingsProvider>
-          {children}
-          <SettingsModal />
+          <OnboardingGate>
+            {children}
+            <SettingsModal />
+          </OnboardingGate>
         </SettingsProvider>
       </body>
     </html>

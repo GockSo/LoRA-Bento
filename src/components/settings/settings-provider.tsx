@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Language, Theme } from '@/lib/i18n';
+import { Language, Theme } from '@/types/settings';
 import type { AppSettings } from '@/lib/server/settings'; // Type only import is safe
 
 interface SettingsContextType {
@@ -9,6 +9,8 @@ interface SettingsContextType {
     theme: Theme;
     setLanguage: (lang: Language) => Promise<void>;
     setTheme: (theme: Theme) => Promise<void>;
+    onboardingCompleted: boolean;
+    setOnboardingCompleted: (completed: boolean) => Promise<void>;
     isLoading: boolean;
     openSettings: () => void;
     closeSettings: () => void;
@@ -99,6 +101,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         await updateSettings({ theme });
     };
 
+    const setOnboardingCompleted = async (completed: boolean) => {
+        await updateSettings({ onboardingCompleted: completed });
+    };
+
     if (!settings) {
         return null; // or a loading spinner to avoid flicker
     }
@@ -110,6 +116,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
                 theme: settings.theme,
                 setLanguage,
                 setTheme,
+                onboardingCompleted: settings.onboardingCompleted ?? false,
+                setOnboardingCompleted,
                 isLoading: !settings,
                 openSettings: () => setIsSettingsOpen(true),
                 closeSettings: () => setIsSettingsOpen(false),
