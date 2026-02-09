@@ -106,7 +106,10 @@ export async function createProject(name: string): Promise<Project> {
     const initialSettings: ProjectSettings = {
         targetSize: 512,
         padMode: 'transparent',
-        padColor: '#000000'
+        padColor: '#000000',
+        train: {
+            mode: 'local'
+        }
     };
 
     const project: Project = {

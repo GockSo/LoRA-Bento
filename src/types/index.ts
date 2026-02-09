@@ -34,6 +34,9 @@ export interface ProjectSettings {
     captionModel?: 'wd14' | 'blip';
     triggerWord?: string;
     augmentation?: AugmentationSettings;
+    train?: {
+        mode: 'local' | 'platform';
+    };
 }
 
 export interface ImageFile {

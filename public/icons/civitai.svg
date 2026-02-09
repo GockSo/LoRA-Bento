@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- CivitAI-inspired icon with modern gradient -->
+  <defs>
+    <linearGradient id="civitai-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded square background -->
+  <rect x="20" y="20" width="160" height="160" rx="32" fill="url(#civitai-gradient)"/>
+  
+  <!-- Abstract AI/network symbol -->
+  <circle cx="100" cy="70" r="12" fill="white"/>
+  <circle cx="70" cy="130" r="12" fill="white"/>
+  <circle cx="130" cy="130" r="12" fill="white"/>
+  
+  <!-- Connection lines -->
+  <line x1="100" y1="70" x2="70" y2="130" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <line x1="100" y1="70" x2="130" y2="130" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <line x1="70" y1="130" x2="130" y2="130" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Center glow effect -->
+  <circle cx="100" cy="100" r="8" fill="white" opacity="0.6"/>
+</svg>
