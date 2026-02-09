@@ -277,9 +277,9 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
                                 <Tag className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Captioning Complete</h3>
+                                <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Captioning Complete - Dataset Ready</h3>
                                 <p className="text-sm text-emerald-700/80 dark:text-emerald-400/80">
-                                    Captioned {job.totalCount ?? job.total} images successfully
+                                    Generated {job.totalCount ?? job.total} image+caption pairs in train_data/
                                     ({job.rawCount ?? 0} raw, {job.augCount ?? 0} augmented)
                                 </p>
                             </div>
@@ -391,7 +391,7 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
             )}
 
             <div className="mt-8 border-t pt-8 text-center text-muted-foreground">
-                <p>After captioning, generated .txt files will appear in your project folder.</p>
+                <p>After captioning, images and captions will be available in the train_data/ folder.</p>
             </div>
         </div>
     );

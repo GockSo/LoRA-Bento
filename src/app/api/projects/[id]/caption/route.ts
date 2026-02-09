@@ -138,6 +138,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         }
                     }
 
+                    // Create train_data_tmp folder for atomic replacement
+                    const trainDataTmpDir = path.join(projectDir, 'train_data_tmp');
+                    const trainDataDir = path.join(projectDir, 'train_data');
+
+                    // Clean up any existing tmp folder from previous runs
+                    await fs.rm(trainDataTmpDir, { recursive: true, force: true });
+                    await fs.mkdir(trainDataTmpDir, { recursive: true });
+
+                    let writtenImages = 0;
+                    let writtenCaptions = 0;
+
                     for (const [filename, data] of Object.entries(captionsData)) {
                         let text = '';
                         if (data && typeof data === 'object') {
@@ -171,9 +182,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                             text = `${triggerWord}, ${text}`;
                         }
 
-                        const txtPath = path.join(resizedDir, `${path.parse(filename).name}.txt`);
+                        // Copy image from resized/ to train_data_tmp/
+                        const sourcePath = path.join(resizedDir, filename);
+                        const destImagePath = path.join(trainDataTmpDir, filename);
+
+                        try {
+                            await fs.copyFile(sourcePath, destImagePath);
+                            writtenImages++;
+                        } catch (err) {
+                            console.error(`Failed to copy ${filename}:`, err);
+                        }
+
+                        // Write caption to train_data_tmp/
+                        const txtPath = path.join(trainDataTmpDir, `${path.parse(filename).name}.txt`);
                         await fs.writeFile(txtPath, text);
+                        writtenCaptions++;
                     }
+
+                    // Atomic replacement: delete old train_data/ and rename tmp
+                    await fs.rm(trainDataDir, { recursive: true, force: true });
+                    await fs.rename(trainDataTmpDir, trainDataDir);
+
+                    console.log(`Created train_data/ with ${writtenImages} images and ${writtenCaptions} captions`);
 
                     // Prepare Summary Data
                     const topItems = Object.entries(counts)
@@ -199,6 +229,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         uniqueCount,
                         samples: samples.length > 0 ? samples : undefined,
                         totalCaptioned: Object.keys(captionsData).length,
+                        writtenImages,
+                        writtenCaptions,
                         updatedAt: new Date().toISOString()
                     };
 

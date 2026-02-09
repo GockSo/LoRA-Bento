@@ -161,7 +161,7 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
                             Ready to Export
                         </h3>
                         <p className="text-sm text-muted-foreground mb-6">
-                            Download your unified dataset formatted for LoRA training (Kohya-ss compatible).
+                            Download your training dataset as a ZIP archive. Generated on-demand from train_data/ folder.
                         </p>
 
                         <div className="bg-background/80 rounded-lg p-4 mb-6 space-y-3 border shadow-inner">

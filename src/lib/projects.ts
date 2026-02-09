@@ -185,13 +185,37 @@ export async function exportProjectZip(id: string): Promise<Buffer> {
     if (!project) throw new Error('Project not found');
 
     const projectDir = path.join(PROJECTS_DIR, id);
+    const trainDataDir = path.join(projectDir, 'train_data');
+
+    // Check if train_data/ exists
+    try {
+        await fs.access(trainDataDir);
+    } catch {
+        throw new Error('train_data folder not found. Please run captioning first.');
+    }
+
     const zip = new AdmZip();
 
-    // Add local folder to zip
-    // 2nd arg is zipPath in archive. We want contents to be at root or under a folder? 
-    // Usually portable zips might have a root folder, but for simple import/export often root contents are easier.
-    // Let's stick effectively to "contents of project folder"
-    zip.addLocalFolder(projectDir);
+    // Read all files from train_data/
+    const files = await fs.readdir(trainDataDir);
+
+    for (const file of files) {
+        const filePath = path.join(trainDataDir, file);
+        const stats = await fs.stat(filePath);
+
+        if (!stats.isFile()) continue;
+
+        const fileBuffer = await fs.readFile(filePath);
+
+        // Separate images and captions into appropriate folders
+        if (file.endsWith('.txt')) {
+            // Add to dataset/captions/
+            zip.addFile(`dataset/captions/${file}`, fileBuffer);
+        } else if (/\.(jpg|jpeg|png|webp)$/i.test(file)) {
+            // Add to dataset/images/
+            zip.addFile(`dataset/images/${file}`, fileBuffer);
+        }
+    }
 
     return zip.toBuffer();
 }
