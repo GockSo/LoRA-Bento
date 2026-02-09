@@ -11,10 +11,12 @@
     "settings": {
         "title": "Settings",
         "language": "Language",
-        "theme": "Theme",
-        "theme_light": "Light",
-        "theme_dark": "Dark",
-        "theme_gockso": "Gock So",
+        "theme_label": "Theme",
+        "theme": {
+            "light": "Light",
+            "dark": "Dark",
+            "gockso": "Gock So"
+        },
         "save": "Save",
         "saved": "Settings saved"
     },

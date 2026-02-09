@@ -11,10 +11,12 @@
     "settings": {
         "title": "设置",
         "language": "语言",
-        "theme": "主题",
-        "theme_light": "浅色",
-        "theme_dark": "深色",
-        "theme_gockso": "Gock So",
+        "theme_label": "主题",
+        "theme": {
+            "light": "浅色",
+            "dark": "深色",
+            "gockso": "Gock So"
+        },
         "save": "保存",
         "saved": "设置已保存"
     },

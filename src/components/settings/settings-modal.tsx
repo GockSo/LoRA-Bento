@@ -67,7 +67,7 @@ export function SettingsModal() {
                     {/* Theme Section */}
                     <div className="space-y-3">
                         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {t('settings.theme')}
+                            {t('settings.theme_label')}
                         </label>
                         <div className="grid grid-cols-3 gap-3">
                             {/* Light Theme */}
