@@ -1,6 +1,7 @@
 export interface ProjectStats {
     total: number;
     augmented: number;
+    cropped: number;
     processed: number;
     captions: number;
 }

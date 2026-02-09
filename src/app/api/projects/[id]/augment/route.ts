@@ -61,6 +61,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     // item.path is absolute path to raw file
                     const fileBaseName = path.basename(item.path, path.extname(item.path)); // Name without extension
 
+                    // Check for cropped version
+                    const filename = path.basename(item.path);
+                    const croppedPath = path.join(projectDir, 'cropped', filename);
+                    let sourcePath = item.path;
+
+                    try {
+                        await fs.access(croppedPath);
+                        sourcePath = croppedPath;
+                    } catch {
+                        // Keep using raw path
+                    }
+
                     // NEW: Subfolder per raw image
                     const itemAugDir = path.join(augDir, `${fileBaseName}_aug`);
                     await fs.mkdir(itemAugDir, { recursive: true });
@@ -84,7 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     const params = getRandomAugmentationParams(settings);
                     // params: { rotate, flipH }
 
-                    await augmentImage(item.path, outputPath, params);
+                    await augmentImage(sourcePath, outputPath, params);
 
                     const outputUrl = `/api/images?path=${encodeURIComponent(outputPath)}&t=${Date.now()}`;
 

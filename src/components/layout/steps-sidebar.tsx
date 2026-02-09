@@ -11,7 +11,8 @@ import {
     BarChart, // Changed from barChart
     ArrowRight,
     ChevronRight,
-    CheckCircle
+    CheckCircle,
+    Crop
 } from 'lucide-react';
 import { Project } from '@/types';
 import { Button } from '@/components/ui/core';
@@ -22,11 +23,12 @@ interface StepsSidebarProps {
 
 const steps = [
     { id: 'import', label: '1. Import', icon: FolderInput, path: 'raw' },
-    { id: 'augment', label: '2. Augment', icon: Wand2, path: 'augmented' },
-    { id: 'process', label: '3. Resize & Pad', icon: Scaling, path: 'processed' },
-    { id: 'caption', label: '4. Caption', icon: Type, path: 'caption' },
-    { id: 'export', label: '5. Analysis & Export', icon: ArrowRight, path: 'export' },
-    { id: 'train', label: '6. Train LoRA', icon: BarChart, path: 'train' },
+    { id: 'crop', label: '2. Crop', icon: Crop, path: 'crop' },
+    { id: 'augment', label: '3. Augment', icon: Wand2, path: 'augmented' },
+    { id: 'process', label: '4. Resize & Pad', icon: Scaling, path: 'processed' },
+    { id: 'caption', label: '5. Caption', icon: Type, path: 'caption' },
+    { id: 'export', label: '6. Analysis & Export', icon: ArrowRight, path: 'export' },
+    { id: 'train', label: '7. Train LoRA', icon: BarChart, path: 'train' },
 ];
 
 export function StepsSidebar({ project }: StepsSidebarProps) {
@@ -68,6 +70,14 @@ export function StepsSidebar({ project }: StepsSidebarProps) {
                     <div className="text-xs text-muted-foreground mt-1 flex justify-between">
                         <span>{project.stats.total} images</span>
                         {project.stats.total > 0 && <CheckCircle className="h-3 w-3 text-green-500" />}
+                    </div>
+                    <div className="flex justify-between">
+                        <span>Cropped</span>
+                        <span className="font-mono">{project.stats.cropped}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>Augmented</span>
+                        <span className="font-mono">{project.stats.augmented}</span>
                     </div>
                     <div className="flex justify-between">
                         <span>Processed</span>

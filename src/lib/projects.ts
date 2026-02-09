@@ -57,6 +57,7 @@ export async function getProjectStats(projectId: string): Promise<ProjectStats> 
 
     return {
         total: await countFiles(path.join(projectDir, 'raw')),
+        cropped: await countFiles(path.join(projectDir, 'cropped')),
         augmented: await countFiles(path.join(projectDir, 'augmented')),
         processed: await countFiles(path.join(projectDir, 'processed')),
         captions: await countTxt(path.join(projectDir, 'processed'))
@@ -79,6 +80,7 @@ export async function createProject(name: string): Promise<Project> {
 
     await ensureDir(projectDir);
     await ensureDir(path.join(projectDir, 'raw'));
+    await ensureDir(path.join(projectDir, 'cropped'));
     await ensureDir(path.join(projectDir, 'augmented'));
     await ensureDir(path.join(projectDir, 'processed'));
 
@@ -95,6 +97,7 @@ export async function createProject(name: string): Promise<Project> {
         updatedAt: new Date().toISOString(),
         stats: {
             total: 0,
+            cropped: 0,
             augmented: 0,
             processed: 0,
             captions: 0
@@ -130,6 +133,7 @@ export async function updateProjectStats(id: string) {
 
     const rawFiles = await fs.readdir(path.join(projectDir, 'raw')).catch(() => []);
     const augmentedFiles = await fs.readdir(path.join(projectDir, 'augmented')).catch(() => []);
+    const croppedFiles = await fs.readdir(path.join(projectDir, 'cropped')).catch(() => []);
     const processedFiles = await fs.readdir(path.join(projectDir, 'processed')).catch(() => []);
 
     // Basic count of text files in processed for captions (assuming .txt)
@@ -139,6 +143,7 @@ export async function updateProjectStats(id: string) {
     await updateProject(id, {
         stats: {
             total: rawFiles.length,
+            cropped: croppedFiles.length,
             augmented: augmentedFiles.length,
             processed: processedImages.length,
             captions: captionFiles.length
