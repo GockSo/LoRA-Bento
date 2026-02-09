@@ -36,6 +36,10 @@ export interface ProjectSettings {
     augmentation?: AugmentationSettings;
     train?: {
         mode: 'local' | 'platform';
+        // Persisted training settings
+        modelPath?: string;
+        modelFamily?: string;
+        trainerScriptPath?: string;
     };
 }
 

@@ -227,7 +227,14 @@ class TrainingManager {
 
         args.push('--resolution', `${config.width},${config.height}`);
         args.push('--train_batch_size', config.batchSize.toString());
-        if (config.maxTrainSteps) args.push('--max_train_steps', config.maxTrainSteps.toString());
+
+        // FIX: Prioritize epochs over max_train_steps
+        if (config.epochs) {
+            args.push('--max_train_epochs', config.epochs.toString());
+        } else if (config.maxTrainSteps) {
+            args.push('--max_train_steps', config.maxTrainSteps.toString());
+        }
+
         if (config.saveEveryNSteps) args.push('--save_every_n_steps', config.saveEveryNSteps.toString());
         args.push('--learning_rate', config.learningRate.toString());
         args.push('--unet_lr', config.unetLr.toString());

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input } from '@/components/ui/core';
 import { Label } from '@/components/ui/label';
-import { Project } from '@/types';
+import { Project, ProjectSettings } from '@/types';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 // Define the shape of our config
 export interface TrainingConfig {
@@ -26,6 +27,7 @@ export interface TrainingConfig {
     enableBucket: boolean;
     repeats: number;
     trainerScriptPath: string; // Path to sd-scripts train_network.py
+    modelFamily?: string;
 }
 
 interface TrainingConfigFormProps {
@@ -36,6 +38,15 @@ interface TrainingConfigFormProps {
 
 // Square Only
 const RESOLUTIONS = [512, 768, 1024];
+
+interface DetectionResult {
+    modelFamily: string;
+    supported: boolean;
+    recommendedScript: string;
+    availableScripts: string[];
+    reason: string;
+    repoPath?: string;
+}
 
 export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfigFormProps) {
     // Initial resolution logic
@@ -49,7 +60,7 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
 
     // Default values
     const [config, setConfig] = useState<TrainingConfig>({
-        pretrainedModelPath: '', // User must fill
+        pretrainedModelPath: project.settings?.train?.modelPath || '',
         outputName: project.name.replace(/\s+/g, '_'),
         outputDir: `projects/${project.id}/train_outputs`, // default relative path
         width: nearest,
@@ -67,18 +78,130 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
         captionExtension: '.txt',
         enableBucket: true,
         repeats: 40,
-        trainerScriptPath: 'D:/train_script/sd-scripts/sdxl_train_network.py'
+        trainerScriptPath: project.settings?.train?.trainerScriptPath || 'train_script/sd-scripts/sdxl_train_network.py',
+        modelFamily: project.settings?.train?.modelFamily || 'Unknown'
     });
 
     const [wasSnapped] = useState(isSnapped);
+    const [isDetecting, setIsDetecting] = useState(false);
+    const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
+    const [detectionError, setDetectionError] = useState<string | null>(null);
+
+    // Debounce save helper
+    const saveTimeoutRef = useRef<NodeJS.Timeout>(null);
+
+    const persistSettings = useCallback((newConfig: Partial<TrainingConfig>) => {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+        saveTimeoutRef.current = setTimeout(() => {
+            const updates: ProjectSettings['train'] = {
+                mode: project.settings?.train?.mode || 'local',
+                modelPath: newConfig.pretrainedModelPath,
+                modelFamily: newConfig.modelFamily,
+                trainerScriptPath: newConfig.trainerScriptPath
+            };
+
+            fetch(`/api/projects/${project.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: { train: updates } })
+            }).catch(err => console.error('Failed to persist settings:', err));
+        }, 1000);
+    }, [project.id, project.settings?.train?.mode]);
 
     const handleChange = (field: keyof TrainingConfig, value: any) => {
-        setConfig(prev => ({ ...prev, [field]: value }));
+        setConfig(prev => {
+            const next = { ...prev, [field]: value };
+            // Persist specific fields
+            if (field === 'pretrainedModelPath' || field === 'trainerScriptPath' || field === 'modelFamily') {
+                persistSettings(next);
+            }
+            return next;
+        });
     };
+
+    // Auto-detect when model path changes
+    useEffect(() => {
+        const path = config.pretrainedModelPath;
+        if (!path || !path.toLowerCase().endsWith('.safetensors') && !path.toLowerCase().endsWith('.ckpt')) {
+            setDetectionResult(null);
+            return;
+        }
+
+        const detect = async () => {
+            setIsDetecting(true);
+            setDetectionError(null);
+            try {
+                const res = await fetch('/api/train/detect-model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ checkpointPath: path, projectId: project.id })
+                });
+
+                if (!res.ok) {
+                    throw new Error('Detection API failed');
+                }
+
+                const data: DetectionResult = await res.json();
+                setDetectionResult(data);
+
+                if (data.recommendedScript) {
+                    // Construct full path assuming standard structure or just filename if that's what we want?
+
+                    const currentScriptPath = config.trainerScriptPath;
+                    // Use detected repo path or relative fallback if not available
+                    let repoBase = data.repoPath || 'train_script/sd-scripts';
+
+                    // Note: We prioritize the backend's reported repoPath. 
+                    // Only fallback to parsing currentScriptPath if absolutely necessary, but strictly speaking backend should provide it now.
+
+                    const newScriptPath = `${repoBase}/${data.recommendedScript}`;
+
+                    setConfig(prev => {
+                        const next = {
+                            ...prev,
+                            trainerScriptPath: newScriptPath,
+                            modelFamily: data.modelFamily
+                        };
+                        persistSettings(next);
+                        return next;
+                    });
+                } else if (data.modelFamily) {
+                    handleChange('modelFamily', data.modelFamily);
+                }
+
+            } catch (err: any) {
+                console.error('Detection error:', err);
+                setDetectionError(err.message || 'Failed to detect model');
+                setDetectionResult({
+                    modelFamily: 'Unknown',
+                    supported: false,
+                    recommendedScript: '',
+                    availableScripts: [],
+                    reason: 'Detection failed'
+                });
+            } finally {
+                setIsDetecting(false);
+            }
+        };
+
+        const timer = setTimeout(detect, 500); // Debounce detection slightly
+        return () => clearTimeout(timer);
+    }, [config.pretrainedModelPath, project.id]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onStart(config);
+    };
+
+    // Helper to get filename from path
+    const getScriptName = (fullPath: string) => {
+        return fullPath.split(/[/\\]/).pop() || '';
+    };
+
+    // Helper to get directory from path
+    const getScriptDir = (fullPath: string) => {
+        return fullPath.substring(0, Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\')));
     };
 
     return (
@@ -124,6 +247,20 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
                                     Browse...
                                 </Button>
                             </div>
+                            {isDetecting && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-3 w-3 animate-spin" /> Detecting model type...
+                                </div>
+                            )}
+                            {!isDetecting && detectionResult && (
+                                <div className={`text-sm flex items-center gap-2 ${detectionResult.supported ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {detectionResult.supported ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                                    <span>Family: <strong>{detectionResult.modelFamily}</strong></span>
+                                    {!detectionResult.supported && (
+                                        <span className="text-xs ml-2">({detectionResult.reason})</span>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -137,14 +274,38 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Trainer Script Path (.py)</Label>
-                            <Input
-                                value={config.trainerScriptPath}
-                                onChange={e => handleChange('trainerScriptPath', e.target.value)}
-                                placeholder="path/to/sd-scripts/train_network.py"
-                                required
-                                disabled={disabled}
-                            />
+                            <Label>Trainer Script (Auto)</Label>
+                            {/* If we have available scripts, show dropdown, else fallback to input or show empty */}
+                            {detectionResult && detectionResult.availableScripts.length > 0 ? (
+                                <select
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={getScriptName(config.trainerScriptPath)}
+                                    onChange={(e) => {
+                                        const newScript = e.target.value;
+                                        // Use repo path from detection result if available, otherwise try to parse from current or fallback
+                                        const currentDir = detectionResult?.repoPath || getScriptDir(config.trainerScriptPath) || 'train_script/sd-scripts';
+                                        handleChange('trainerScriptPath', `${currentDir}/${newScript}`);
+                                    }}
+                                    disabled={disabled}
+                                >
+                                    {detectionResult.availableScripts.map(script => (
+                                        <option key={script} value={script} className="bg-popover text-popover-foreground">
+                                            {script}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <Input
+                                    value={config.trainerScriptPath}
+                                    onChange={e => handleChange('trainerScriptPath', e.target.value)}
+                                    placeholder="path/to/sd-scripts/train_network.py"
+                                    required
+                                    disabled={disabled}
+                                />
+                            )}
+                            <p className="text-[10px] text-muted-foreground truncate" title={config.trainerScriptPath}>
+                                Resolved path: {config.trainerScriptPath}
+                            </p>
                         </div>
 
                         <div className="space-y-2">
@@ -261,8 +422,14 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
                         </div>
                     </div>
 
+                    {detectionResult && !detectionResult.supported && (
+                        <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
+                            <strong>Warning:</strong> {detectionResult.reason || 'This checkpoint type is not supported for local training yet.'}
+                        </div>
+                    )}
+
                     <div className="flex justify-end pt-4">
-                        <Button type="submit" disabled={disabled}>
+                        <Button type="submit" disabled={disabled || (detectionResult !== null && !detectionResult.supported)}>
                             Start Training
                         </Button>
                     </div>

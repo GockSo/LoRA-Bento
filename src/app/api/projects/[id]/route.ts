@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { renameProject, deleteProject, getProject } from '@/lib/projects';
+import { renameProject, deleteProject, getProject, updateProject } from '@/lib/projects';
 
 export async function GET(
     req: NextRequest,
@@ -27,16 +27,15 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await req.json();
-        const { name } = body;
 
-        if (!name) {
-            return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+        if (!body.name && !body.settings) {
+            return NextResponse.json({ error: 'Name or settings are required' }, { status: 400 });
         }
 
-        const project = await renameProject(id, name);
+        const project = await updateProject(id, body);
         return NextResponse.json(project);
     } catch (error) {
-        console.error('Rename project error:', error);
+        console.error('Update project error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
