@@ -99,7 +99,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 ))
 CardFooter.displayName = "CardFooter"
 
-const Switch = React.forwardRef<HTMLButtonElement, { checked?: boolean; onCheckedChange?: (checked: boolean) => void; className?: string }>(
+const Switch = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { checked?: boolean; onCheckedChange?: (checked: boolean) => void }>(
     ({ checked, onCheckedChange, className, ...props }, ref) => (
         <button
             type="button"
