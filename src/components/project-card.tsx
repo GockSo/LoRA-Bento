@@ -103,9 +103,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            // Content-Disposition should handle filename, but we can try to extract or fallback
-            // The browser usually respects the header with just triggering download
-            // But we need to click it.
             const contentDisposition = res.headers.get('Content-Disposition');
             let filename = `project-${project.id}.zip`;
             if (contentDisposition) {
@@ -127,60 +124,67 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
     return (
         <>
-            <Card className="flex flex-col hover:shadow-lg transition-all relative group">
-                <CardHeader className="pb-2">
+            <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-300 group hover:-translate-y-1 bg-card/50 backdrop-blur-sm border-muted/60">
+                <CardHeader className="pb-3 space-y-2">
                     <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0 flex-1">
-                            <CardTitle className="truncate" title={project.name}>{project.name}</CardTitle>
-                            <CardDescription>
+                        <div className="min-w-0 flex-1 space-y-1">
+                            <CardTitle className="truncate font-bold text-lg" title={project.name}>{project.name}</CardTitle>
+                            <CardDescription className="text-xs font-medium">
                                 {t('dashboard.col_updated')} {formatDistanceToNow(new Date(project.updatedAt))} ago
                             </CardDescription>
                         </div>
-                        <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsRenameOpen(true)} title={t('dashboard.context_rename')}>
-                                <Pencil className="h-4 w-4" />
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsRenameOpen(true)} title={t('dashboard.context_rename')}>
+                                <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExport} disabled={isExporting} title={t('dashboard.context_export')}>
-                                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExport} disabled={isExporting} title={t('dashboard.context_export')}>
+                                {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setIsDeleteOpen(true)} title={t('dashboard.context_delete')}>
-                                <Trash2 className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setIsDeleteOpen(true)} title={t('dashboard.context_delete')}>
+                                <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="flex-1 pb-2">
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                        <div className="flex justify-between">
-                            <span>{t('dashboard.stats_total')}</span>
-                            <span className="font-medium">{project.stats.total}</span>
+                <CardContent className="flex-1 pb-4">
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">{t('dashboard.stats_total')}</p>
+                            <p className="text-xl font-bold tracking-tight">{project.stats.total}</p>
                         </div>
-                        <div className="flex justify-between">
-                            <span>{t('sidebar.augmented')}</span>
-                            <span className="font-medium">{project.stats.augmented}</span>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">{t('sidebar.augmented')}</p>
+                            <p className="text-xl font-bold tracking-tight">{project.stats.augmented}</p>
                         </div>
-                        <div className="flex items-center gap-2 col-span-2">
-                            <FileText className="h-4 w-4" />
-                            <span>{project.stats.captions} {t('dashboard.stats_captioned')}</span>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">{t('sidebar.processed')}</p>
+                            <p className="text-xl font-bold tracking-tight">{project.stats.processed}</p>
                         </div>
-
-                        {/* Training Progress */}
-                        {trainingStatus?.status === 'running' && (
-                            <div className="col-span-2 space-y-1 mt-2 p-2 bg-muted/50 rounded-md">
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-primary font-medium animate-pulse">{t('actions.training')}...</span>
-                                    <span>{trainingStatus.progress.percent}%</span>
-                                </div>
-                                <Progress value={trainingStatus.progress.percent} className="h-1.5" />
-                                <div className="text-[10px] text-muted-foreground truncate">
-                                    Step {trainingStatus.progress.step} / {trainingStatus.progress.totalSteps}
-                                </div>
-                            </div>
-                        )}
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">{t('dashboard.stats_captioned')}</p>
+                            <p className="text-xl font-bold tracking-tight">{project.stats.captions}</p>
+                        </div>
                     </div>
+
+                    {/* Training Progress */}
+                    {trainingStatus?.status === 'running' && (
+                        <div className="mt-4 space-y-1.5 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                            <div className="flex justify-between text-xs items-center">
+                                <span className="text-primary font-semibold animate-pulse flex items-center gap-1.5">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    {t('actions.training')}...
+                                </span>
+                                <span className="font-mono">{trainingStatus.progress.percent}%</span>
+                            </div>
+                            <Progress value={trainingStatus.progress.percent} className="h-1.5" />
+                            <div className="text-[10px] text-muted-foreground truncate font-mono">
+                                Step {trainingStatus.progress.step} / {trainingStatus.progress.totalSteps}
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
-                <CardFooter>
-                    <Button asChild className="w-full">
+                <CardFooter className="pt-2 pb-6 px-6">
+                    <Button asChild className="w-full transition-transform active:scale-[0.98] theme-gockso:hover:scale-[1.01]">
                         <Link href={`/projects/${project.id}/raw`}>
                             <FolderOpen className="mr-2 h-4 w-4" />
                             {t('dashboard.context_open')}

@@ -102,12 +102,20 @@
     "dashboard": {
         "title": "Projects",
         "subtitle": "Manage your LoRA training datasets.",
+        "search_placeholder": "Search projects...",
         "new_project": "New Project",
         "import_project": "Import Project",
         "no_projects": "No projects yet.",
+        "no_results": "No projects found",
+        "no_results_desc": "Try adjusting your search query.",
         "col_name": "Name",
         "col_updated": "Updated",
         "col_status": "Status",
+        "sort": {
+            "label": "Sort by",
+            "updated": "Last updated",
+            "name": "Name (A-Z)"
+        },
         "context_open": "Open",
         "context_rename": "Rename",
         "context_export": "Export ZIP",
