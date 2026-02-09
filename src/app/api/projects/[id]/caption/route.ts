@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const { model, triggerWord } = body;
 
         const projectDir = path.join(process.cwd(), 'projects', id);
-        const processedDir = path.join(projectDir, 'processed');
+        const resizedDir = path.join(projectDir, 'resized');
         const metadataPath = path.join(projectDir, 'captions.json');
         const jobPath = path.join(projectDir, JOB_FILE);
 
@@ -45,18 +45,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const totalCount = includedItems.length;
         const excludedCount = allItems.length - totalCount;
 
-        // Determine input source (prefer processed if not empty)
-        const processedFiles = await fs.readdir(processedDir).catch(() => []);
-        const processedImages = processedFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+        // Determine input source (prefer resized if not empty)
+        const resizedFiles = await fs.readdir(resizedDir).catch(() => []);
+        const resizedImages = resizedFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
 
-        let targetDir = processedDir;
-        let sourceStage: 'processed' | 'raw+aug' = 'processed';
+        let targetDir = resizedDir;
+        let sourceStage: 'resized' | 'raw+aug' = 'resized';
 
-        if (processedImages.length === 0) {
+        if (resizedImages.length === 0) {
             // Fallback to raw+aug is not ideal but supported as per requirements
-            // However, the script processes ONE dir. If we have raw + aug dispersed, we usually expect them in processed.
-            // If processed is empty, we tell user to run Step 3 (Resize/Process).
-            return NextResponse.json({ error: 'No processed images to caption. Please complete Step 4 first.' }, { status: 400 });
+            // However, the script processes ONE dir. If we have raw + aug dispersed, we usually expect them in resized.
+            // If resized is empty, we tell user to run Step 4 (Resize/Process).
+            return NextResponse.json({ error: 'No resized images to caption. Please complete Step 4 first.' }, { status: 400 });
         }
 
         // Save settings
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                             text = `${triggerWord}, ${text}`;
                         }
 
-                        const txtPath = path.join(processedDir, `${path.parse(filename).name}.txt`);
+                        const txtPath = path.join(resizedDir, `${path.parse(filename).name}.txt`);
                         await fs.writeFile(txtPath, text);
                     }
 

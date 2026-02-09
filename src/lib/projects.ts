@@ -78,8 +78,8 @@ export async function getProjectStats(projectId: string): Promise<ProjectStats> 
             } catch { return 0; }
         })(),
         augmented: await countFiles(path.join(projectDir, 'augmented')),
-        processed: await countFiles(path.join(projectDir, 'processed')),
-        captions: await countTxt(path.join(projectDir, 'processed'))
+        processed: await countFiles(path.join(projectDir, 'resized')),
+        captions: await countTxt(path.join(projectDir, 'resized'))
     };
 }
 
@@ -101,7 +101,7 @@ export async function createProject(name: string): Promise<Project> {
     await ensureDir(path.join(projectDir, 'raw'));
     await ensureDir(path.join(projectDir, 'cropped'));
     await ensureDir(path.join(projectDir, 'augmented'));
-    await ensureDir(path.join(projectDir, 'processed'));
+    await ensureDir(path.join(projectDir, 'resized'));
 
     const initialSettings: ProjectSettings = {
         targetSize: 512,
@@ -153,18 +153,18 @@ export async function updateProjectStats(id: string) {
     const rawFiles = await fs.readdir(path.join(projectDir, 'raw')).catch(() => []);
     const augmentedFiles = await fs.readdir(path.join(projectDir, 'augmented')).catch(() => []);
     const croppedFiles = await fs.readdir(path.join(projectDir, 'cropped')).catch(() => []);
-    const processedFiles = await fs.readdir(path.join(projectDir, 'processed')).catch(() => []);
+    const resizedFiles = await fs.readdir(path.join(projectDir, 'resized')).catch(() => []);
 
-    // Basic count of text files in processed for captions (assuming .txt)
-    const captionFiles = processedFiles.filter(f => f.endsWith('.txt'));
-    const processedImages = processedFiles.filter(f => f.endsWith('.png') || f.endsWith('.jpg'));
+    // Basic count of text files in resized for captions (assuming .txt)
+    const captionFiles = resizedFiles.filter(f => f.endsWith('.txt'));
+    const resizedImages = resizedFiles.filter(f => f.endsWith('.png') || f.endsWith('.jpg'));
 
     await updateProject(id, {
         stats: {
             total: rawFiles.length,
             cropped: croppedFiles.length,
             augmented: augmentedFiles.length,
-            processed: processedImages.length,
+            processed: resizedImages.length,
             captions: captionFiles.length
         }
     });

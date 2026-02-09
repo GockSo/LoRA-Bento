@@ -30,8 +30,9 @@ export async function processImage(
         throw new Error('Invalid image metadata');
     }
 
-    // Calculate new dimensions ensuring aspect ratio is preserved and it fits within targetSize
-    const scale = Math.min(targetSize / metadata.width, targetSize / metadata.height);
+    // Calculate new dimensions ensuring aspect ratio is preserved
+    // Scale so the LONGER side becomes exactly targetSize
+    const scale = targetSize / Math.max(metadata.width, metadata.height);
     const newWidth = Math.round(metadata.width * scale);
     const newHeight = Math.round(metadata.height * scale);
 
@@ -42,9 +43,16 @@ export async function processImage(
 
     // Extension/Padding logic
     if (padMode === 'transparent' || padMode === 'solid') {
-        const background = padMode === 'solid' && padColor
-            ? padColor
-            : { r: 0, g: 0, b: 0, alpha: 0 };
+        let background: any = { r: 0, g: 0, b: 0, alpha: 0 };
+
+        if (padMode === 'solid' && padColor) {
+            // Parse hex color to RGB
+            const hex = padColor.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            background = { r, g, b, alpha: 1 };
+        }
 
         pipeline = pipeline.extend({
             top: Math.floor((targetSize - newHeight) / 2),

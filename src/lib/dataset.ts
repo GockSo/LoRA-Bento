@@ -21,12 +21,12 @@ export interface TrainingSetStats {
 export interface TrainingSet {
     items: TrainingSetItem[];
     stats: TrainingSetStats;
-    sourceStage: 'processed' | 'raw+aug';
+    sourceStage: 'resized' | 'raw+aug';
 }
 
 export async function getTrainingSet(projectId: string): Promise<TrainingSet> {
     const projectDir = path.join(process.cwd(), 'projects', projectId);
-    const processedDir = path.join(projectDir, 'processed');
+    const resizedDir = path.join(projectDir, 'resized');
     const manifest = await getManifest(projectId);
 
     // 1. Discovery
@@ -39,12 +39,12 @@ export async function getTrainingSet(projectId: string): Promise<TrainingSet> {
     const excludedCount = allItems.length - totalCount;
 
     // 2. Determine Source
-    // We prefer 'processed' if it contains images. 
-    // Resize&Pad step generates PNGs in 'processed/'.
-    const processedFiles = await fs.readdir(processedDir).catch(() => []);
-    const hasProcessed = processedFiles.some(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+    // We prefer 'resized' if it contains images. 
+    // Resize&Pad step generates PNGs in 'resized/'.
+    const resizedFiles = await fs.readdir(resizedDir).catch(() => []);
+    const hasResized = resizedFiles.some(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
 
-    const sourceStage = hasProcessed ? 'processed' : 'raw+aug';
+    const sourceStage = hasResized ? 'resized' : 'raw+aug';
     const trainingItems: TrainingSetItem[] = [];
 
     for (const item of includedItems) {
@@ -53,21 +53,21 @@ export async function getTrainingSet(projectId: string): Promise<TrainingSet> {
         let imagePath = item.path;
         let captionPath = '';
 
-        if (hasProcessed) {
-            // Processed naming: ${baseName}_${shortId}.png
+        if (hasResized) {
+            // Resized naming: ${baseName}_${shortId}.png
             const shortId = item.id.slice(0, 8);
-            const processedImgPath = path.join(processedDir, `${baseName}_${shortId}.png`);
+            const resizedImgPath = path.join(resizedDir, `${baseName}_${shortId}.png`);
 
             // Check if it exists
-            const exists = await fs.access(processedImgPath).then(() => true).catch(() => false);
+            const exists = await fs.access(resizedImgPath).then(() => true).catch(() => false);
             if (exists) {
-                imagePath = processedImgPath;
+                imagePath = resizedImgPath;
                 // CAPTION PATH: ${baseName}_${shortId}.txt
-                captionPath = path.join(processedDir, `${baseName}_${shortId}.txt`);
+                captionPath = path.join(resizedDir, `${baseName}_${shortId}.txt`);
             } else if (item.stage === 'augmented') {
-                // If it's an augmented item but not in processed, it might be an issue
-                // but we should still try to find it in augmented folder if hasProcessed is false or it's missing
-                // However, the rule is source-of-truth is processed/ if it contains images.
+                // If it's an augmented item but not in resized, it might be an issue
+                // but we should still try to find it in augmented folder if hasResized is false or it's missing
+                // However, the rule is source-of-truth is resized/ if it contains images.
             }
         }
 

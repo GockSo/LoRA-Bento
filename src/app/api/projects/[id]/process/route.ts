@@ -21,10 +21,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         await updateProject(id, { settings: { ...settings } });
 
         const projectDir = path.join(process.cwd(), 'projects', id);
-        const processedDir = path.join(projectDir, 'processed');
+        const resizedDir = path.join(projectDir, 'resized');
         const jobsDir = path.join(projectDir, 'jobs');
 
-        await fs.mkdir(processedDir, { recursive: true });
+        await fs.mkdir(resizedDir, { recursive: true });
         await fs.mkdir(jobsDir, { recursive: true });
 
         // Source: Use Manifest Items (Raw + Aug)
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     const nameWithoutExt = path.parse(fileName).name;
                     // Use ID slice to ensure uniqueness even if basenames match (e.g. 1.jpg in raw and 1.png in augmented)
                     const outputName = `${nameWithoutExt}_${item.id.slice(0, 8)}.png`;
-                    const outputPath = path.join(processedDir, outputName);
+                    const outputPath = path.join(resizedDir, outputName);
 
                     await processImage(item.path, outputPath, settings as ProjectSettings);
 
