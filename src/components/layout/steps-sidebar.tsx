@@ -12,10 +12,13 @@ import {
     ArrowRight,
     ChevronRight,
     CheckCircle,
-    Crop
+    Crop,
+    Settings
 } from 'lucide-react';
 import { Project } from '@/types';
 import { Button } from '@/components/ui/core';
+import { useSettings } from '@/components/settings/settings-provider';
+import { t } from '@/lib/i18n';
 
 interface StepsSidebarProps {
     project: Project;
@@ -34,6 +37,7 @@ const steps = [
 export function StepsSidebar({ project }: StepsSidebarProps) {
     const pathname = usePathname();
     const currentStep = pathname.split('/').pop() || 'raw';
+    const { openSettings, language } = useSettings();
 
     return (
         <div className="w-64 border-r bg-card flex flex-col h-full">
@@ -66,6 +70,15 @@ export function StepsSidebar({ project }: StepsSidebarProps) {
             </div>
 
             <div className="p-4 border-t bg-muted/20">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2 mb-4 text-muted-foreground"
+                    onClick={openSettings}
+                >
+                    <Settings className="h-4 w-4" />
+                    {t('settings.title', language)}
+                </Button>
                 <div className="space-y-2 text-xs text-muted-foreground">
                     <div className="text-xs text-muted-foreground mt-1 flex justify-between">
                         <span>{project.stats.total} images</span>

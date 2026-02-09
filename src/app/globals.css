@@ -35,6 +35,79 @@
     --radius: 0.5rem;
   }
 
+  .theme-light {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+  }
+
+  .theme-gockso {
+    /* Gock So Theme - Pastel/Cute */
+    /* Background: very light pink-tinted off-white #FFF7FB */
+    --background: 315 25% 98%;
+    /* Javascript/Text: dark warm-gray #1F2430 */
+    --foreground: 222 21% 15%;
+
+    /* Surface: custom but mapping to card */
+    --card: 0 0% 100%;
+    --card-foreground: 222 21% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 21% 15%;
+
+    /* Primary: soft strawberry milk pink #FF6FAE */
+    --primary: 334 100% 71%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary/Accent: lavender #B79CFF */
+    --secondary: 256 100% 80%;
+    --secondary-foreground: 222 21% 15%;
+
+    /* Muted: #6B7280 equivalent */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent again for hover maps */
+    --accent: 256 100% 90%;
+    --accent-foreground: 222 21% 15%;
+
+    /* Destructive: rose pastel #FF5A7A */
+    --destructive: 348 100% 67%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border: gentle pink-gray #F2D6E6 */
+    --border: 326 50% 89%;
+    --input: 326 50% 89%;
+    --ring: 334 100% 71%;
+
+    --radius: 1rem;
+    /* Rounded-2xl look */
+  }
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -70,6 +143,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
