@@ -14,7 +14,8 @@ interface SetupProgressProps {
 }
 
 export function SetupProgress({ status, logs, errorMessage, isGitNotFound, onRetry }: SetupProgressProps) {
-    if (status === 'idle') return null;
+    // Hide the card completely when ready or idle
+    if (status === 'idle' || status === 'ready') return null;
 
     const getStatusDisplay = () => {
         switch (status) {
@@ -29,12 +30,6 @@ export function SetupProgress({ status, logs, errorMessage, isGitNotFound, onRet
                     icon: <Loader2 className="animate-spin" size={20} />,
                     title: 'Setting up Local Trainer...',
                     color: 'text-blue-500'
-                };
-            case 'ready':
-                return {
-                    icon: <CheckCircle2 size={20} />,
-                    title: 'Local trainer ready',
-                    color: 'text-green-500'
                 };
             case 'error':
                 return {
@@ -83,12 +78,6 @@ export function SetupProgress({ status, logs, errorMessage, isGitNotFound, onRet
                     </div>
                 )}
 
-                {/* Success Message */}
-                {status === 'ready' && (
-                    <div className="bg-green-500/15 text-green-600 dark:text-green-400 p-3 rounded-md text-sm font-medium">
-                        ✓ sd-scripts repository is ready at ./train_script/sd-scripts
-                    </div>
-                )}
 
                 {/* Retry Button */}
                 {status === 'error' && (

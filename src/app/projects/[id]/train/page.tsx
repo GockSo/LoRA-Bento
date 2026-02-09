@@ -211,6 +211,7 @@ export default function TrainPage({ params }: { params: Promise<{ id: string }> 
                     mode={mode}
                     onChange={handleModeChange}
                     disabled={isRunning}
+                    isLocalReady={isLocalSetupReady}
                 />
             </div>
 
