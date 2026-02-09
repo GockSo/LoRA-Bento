@@ -14,6 +14,9 @@ export interface Project {
     stats: ProjectStats;
     settings: ProjectSettings;
     excludedRaw?: string[]; // Array of raw filenames to exclude
+    crop?: {
+        mode: 'normal' | 'skip';
+    };
 }
 
 export interface AugmentationSettings {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 import { processImage } from '@/lib/images';
-import { updateProject, updateProjectStats } from '@/lib/projects';
+import { updateProject, updateProjectStats, getProject } from '@/lib/projects';
 import { getManifest, sortManifestItems } from '@/lib/manifest'; // Use manifest
 import { v4 as uuidv4 } from 'uuid';
 import { ProjectSettings } from '@/types';
@@ -75,20 +75,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     // Determine source path
                     let sourcePath = item.path;
 
-                    // If item is raw, check for crop
+                    // If item is raw, check for crop OR skip crop
                     if (item.stage === 'raw') {
                         const filename = path.basename(item.path);
-                        const cropDir = path.join(projectDir, 'cropped', filename);
-                        const metaPath = path.join(cropDir, 'meta.json');
-                        try {
-                            await fs.access(metaPath);
-                            const metaContent = await fs.readFile(metaPath, 'utf-8');
-                            const meta = JSON.parse(metaContent);
-                            if (meta.activeCrop) {
-                                sourcePath = path.join(cropDir, meta.activeCrop);
+
+                        // SKIP CROP LOGIC
+                        const projectConfig = await getProject(id);
+                        if (projectConfig?.crop?.mode === 'skip') {
+                            const skipCropPath = path.join(projectDir, 'skip_crop', filename);
+                            try {
+                                await fs.access(skipCropPath);
+                                sourcePath = skipCropPath;
+                            } catch {
+                                console.warn(`Skip crop enabled but file not found: ${skipCropPath}`);
                             }
-                        } catch {
-                            // No crop or meta, stick to raw
+                        } else {
+                            // Normal Crop Logic
+                            const cropDir = path.join(projectDir, 'cropped', filename);
+                            const metaPath = path.join(cropDir, 'meta.json');
+                            try {
+                                await fs.access(metaPath);
+                                const metaContent = await fs.readFile(metaPath, 'utf-8');
+                                const meta = JSON.parse(metaContent);
+                                if (meta.activeCrop) {
+                                    sourcePath = path.join(cropDir, meta.activeCrop);
+                                }
+                            } catch {
+                                // No crop or meta, stick to raw
+                            }
                         }
                     }
 

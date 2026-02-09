@@ -12,6 +12,16 @@ import { CheckCircle, RotateCcw, Scissors, ArrowRight, Settings2, Sparkles, Load
 import { ManageCropsModal } from './manage-crops-modal';
 import { ReviewAutoCropModal } from './review-auto-crop-modal';
 import { ImagePreviewModal } from '@/components/ui/image-preview-modal';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CropVariant {
     file: string;
@@ -34,6 +44,8 @@ interface CropImage {
 interface CropClientProps {
     projectId: string;
     images: CropImage[];
+    project: any;
+    initialStats?: any;
 }
 
 function centerAspectCrop(
@@ -56,8 +68,10 @@ function centerAspectCrop(
     )
 }
 
-export function CropClient({ projectId, images }: CropClientProps) {
+export function CropClient({ projectId, images, project, initialStats }: CropClientProps) {
     const router = useRouter();
+    const [stats, setStats] = useState(initialStats);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [selectedImage, setSelectedImage] = useState<CropImage | null>(images.length > 0 ? images[0] : null);
     const [crop, setCrop] = useState<Crop>();
     const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
@@ -79,6 +93,10 @@ export function CropClient({ projectId, images }: CropClientProps) {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
 
+    // Skip Crop State
+    const [isSkipCropEnabled, setIsSkipCropEnabled] = useState(project?.crop?.mode === 'skip');
+    const [isSkipConfirmOpen, setIsSkipConfirmOpen] = useState(false);
+
     // Fetch crop variants when image selected
     const fetchVariants = useCallback(async () => {
         if (!selectedImage) return;
@@ -93,6 +111,42 @@ export function CropClient({ projectId, images }: CropClientProps) {
             console.error('Failed to fetch variants', e);
         }
     }, [projectId, selectedImage]);
+
+    const handleEnableSkipCrop = async () => {
+        setIsProcessing(true);
+        try {
+            const res = await fetch(`/api/projects/${projectId}/crop/skip/enable`, { method: 'POST' });
+            if (!res.ok) throw new Error('Failed to enable skip crop');
+            const data = await res.json();
+            setIsSkipCropEnabled(true);
+            toast.success(`Skip Crop enabled! Copied ${data.count} images.`);
+            setIsSkipConfirmOpen(false);
+            router.refresh(); // Refresh to update downstream if needed
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to enable Skip Crop');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleDisableSkipCrop = async () => {
+        if (!confirm("Are you sure you want to disable Skip Crop? This will return to using cropped images.")) return;
+
+        setIsProcessing(true);
+        try {
+            const res = await fetch(`/api/projects/${projectId}/crop/skip/disable`, { method: 'POST' });
+            if (!res.ok) throw new Error('Failed to disable skip crop');
+            setIsSkipCropEnabled(false);
+            toast.success('Skip Crop disabled. Returning to normal workflow.');
+            router.refresh();
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to disable Skip Crop');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
     useEffect(() => {
         if (selectedImage) {
@@ -336,11 +390,11 @@ export function CropClient({ projectId, images }: CropClientProps) {
             </div>
 
             {/* Right Panel: Gallery */}
-            <div className="w-80 flex flex-col bg-card rounded-lg border shadow-sm">
-                <div className="p-4 border-b">
-                    <h3 className="font-semibold">Images ({images.length})</h3>
+            <div className="w-80 flex flex-col bg-card rounded-lg border shadow-sm h-full">
+                <div className="p-4 border-b flex-shrink-0">
+                    <h3 className="font-semibold whitespace-nowrap">Images ({images.length})</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
                     {images.map(img => (
                         <div
                             key={img.id}
@@ -354,7 +408,6 @@ export function CropClient({ projectId, images }: CropClientProps) {
                             )}
                         >
                             <div className="relative w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
-
                                 <Image
                                     src={img.rawUrl}
                                     alt={img.id}
@@ -381,13 +434,55 @@ export function CropClient({ projectId, images }: CropClientProps) {
                         </div>
                     ))}
                 </div>
-                <div className="p-4 border-t">
-                    <Button className="w-full" asChild>
-                        <a href={`/projects/${projectId}/augmented`}>
-                            Continue to Augment
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                        </a>
-                    </Button>
+
+                {/* Sticky Footer */}
+                <div className="flex-shrink-0 p-3 border-t bg-card space-y-2">
+                    {/* Skip Crop Row */}
+                    {isSkipCropEnabled ? (
+                        <div className="flex items-center justify-center gap-2 bg-yellow-500/10 px-3 py-2 rounded-lg border border-yellow-500/20">
+                            <span className="text-xs font-medium text-yellow-500 flex items-center gap-1.5 flex-1 min-w-0">
+                                <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span className="truncate">Skip Crop Enabled</span>
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-muted-foreground hover:text-white flex-shrink-0"
+                                onClick={handleDisableSkipCrop}
+                                disabled={isProcessing}
+                            >
+                                Disable
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsSkipConfirmOpen(true)}
+                            disabled={isProcessing}
+                            className="w-full text-muted-foreground border-dashed whitespace-nowrap"
+                        >
+                            Skip Crop (Use Full Images)
+                        </Button>
+                    )}
+
+                    {/* Navigation Buttons Row */}
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => router.push(`/projects/${projectId}`)}
+                            className="flex-1 whitespace-nowrap"
+                        >
+                            Back
+                        </Button>
+                        <Button
+                            onClick={() => router.push(`/projects/${projectId}/augmented`)}
+                            className="flex-1 whitespace-nowrap"
+                        >
+                            Continue
+                            <ArrowRight className="w-4 h-4 ml-1.5" />
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -453,6 +548,30 @@ export function CropClient({ projectId, images }: CropClientProps) {
                 imageMap={imageMap}
                 onApply={handleRefresh}
             />
+
+            <AlertDialog open={isSkipConfirmOpen} onOpenChange={setIsSkipConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Skip Cropping?</AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-3">
+                            <p>
+                                If you enable this, LoRA Bento will use your original RAW images without cropping.
+                                This is ideal when your dataset framing is already good and you want the full composition.
+                            </p>
+                            <div className="text-sm bg-muted p-3 rounded-md border text-muted-foreground">
+                                <p>• We will copy RAW images into a <code>skip_crop/</code> folder.</p>
+                                <p>• You can disable this later and return to cropped workflow.</p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleEnableSkipCrop} className="bg-primary text-primary-foreground">
+                            Enable Skip Crop
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

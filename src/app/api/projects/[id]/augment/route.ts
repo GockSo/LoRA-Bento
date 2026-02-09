@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 import { augmentImage, getRandomAugmentationParams } from '@/lib/images';
-import { updateProjectStats, updateProject } from '@/lib/projects';
+import { updateProjectStats, updateProject, getProject } from '@/lib/projects';
 import { addToManifest, getManifest } from '@/lib/manifest';
 import { v4 as uuidv4 } from 'uuid';
 import { AugmentationSettings, ManifestItem } from '@/types';
@@ -68,29 +68,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                     const metaPath = path.join(cropDir, 'meta.json');
                     let sourcePath = item.path;
 
-                    try {
-                        // Check if crop directory and meta exist
-                        await fs.access(metaPath);
-                        const metaContent = await fs.readFile(metaPath, 'utf-8');
-                        const meta = JSON.parse(metaContent);
-
-                        if (meta.activeCrop) {
-                            sourcePath = path.join(cropDir, meta.activeCrop);
-                        }
-                    } catch {
-                        // Fallback: Check for legacy flat crop file (backward compatibility)
-                        /* 
+                    // SKIP CROP LOGIC
+                    const projectConfig = await getProject(id);
+                    if (projectConfig?.crop?.mode === 'skip') {
+                        const skipCropPath = path.join(projectDir, 'skip_crop', filename);
                         try {
-                            const legacyCropPath = path.join(projectDir, 'cropped', filename);
-                            const stat = await fs.stat(legacyCropPath);
-                             if (stat.isFile()) {
-                                sourcePath = legacyCropPath;
+                            await fs.access(skipCropPath);
+                            sourcePath = skipCropPath;
+                            // continue with this source
+                        } catch {
+                            // fallback to normal logic if file missing (shouldn't happen if enabled correctly)
+                            console.warn(`Skip crop enabled but file not found: ${skipCropPath}`);
+                        }
+                    } else {
+                        // Normal Crop Logic
+                        try {
+                            // Check if crop directory and meta exist
+                            await fs.access(metaPath);
+                            const metaContent = await fs.readFile(metaPath, 'utf-8');
+                            const meta = JSON.parse(metaContent);
+
+                            if (meta.activeCrop) {
+                                sourcePath = path.join(cropDir, meta.activeCrop);
                             }
-                        } catch {}
-                        */
-                        // Actually, logic above handles raw fallback if crop fails.
-                        // If we want legacy support, we can add it, but for v2 we can assume new structure
-                        // or just rely on raw if no meta.
+                        } catch {
+                            // Fallback to raw (sourcePath is already item.path)
+                        }
                     }
 
 

@@ -81,7 +81,7 @@ export default async function CropPage({
                 </p>
             </div>
 
-            <CropClient projectId={id} images={images} />
+            <CropClient projectId={id} images={images} project={project} />
         </div>
     );
 }
