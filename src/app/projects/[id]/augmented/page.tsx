@@ -20,6 +20,7 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
     });
 
     const [manifestItems, setManifestItems] = useState<any[]>([]);
+    const [inputSources, setInputSources] = useState<any[]>([]);
     const [excludedRaw, setExcludedRaw] = useState<string[]>([]);
     const [filter, setFilter] = useState<'all' | 'raw' | 'augmented' | 'excluded'>('all');
     const [isClearing, setIsClearing] = useState(false);
@@ -32,11 +33,21 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
 
     const fetchManifest = async () => {
         try {
-            const res = await fetch(`/api/projects/${projectId}/manifest`);
-            if (res.ok) {
-                const data = await res.json();
+            // Fetch both manifest and input sources in parallel
+            const [manifestRes, inputsRes] = await Promise.all([
+                fetch(`/api/projects/${projectId}/manifest`),
+                fetch(`/api/projects/${projectId}/augment/inputs`)
+            ]);
+
+            if (manifestRes.ok) {
+                const data = await manifestRes.json();
                 setManifestItems(data.items || []);
                 setExcludedRaw(data.excludedRaw || []);
+            }
+
+            if (inputsRes.ok) {
+                const inputsData = await inputsRes.json();
+                setInputSources(inputsData.inputs || []);
             }
         } catch (e) {
             console.error('Failed to load manifest', e);
@@ -163,16 +174,24 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
         return () => clearInterval(interval);
     }, [jobId, jobStatus, projectId, router]);
 
-    // Combine Manifest + Ephemeral Results for View
-    // BUT we want to enforce adjacency.
-    // If job is running, we have Raw items (in manifest) and Aug items (in results).
-    // We should try to interleave them if possible for the preview.
-    // Simplifying for now: Just show Manifest, then append Results?
-    // User requested "Combined gallery (Raw + Augmented) ... Raw 1.png instantly followed by 2.png".
-    // This requires sorting logic on the client side if we strictly want live interleaving.
+    // Combine Input Sources + Manifest (augmented) + Ephemeral Results for View
+    // Transform inputSources to manifest-like format
+    const baseInputItems = inputSources.map(input => ({
+        id: input.imageId,
+        stage: 'raw',
+        src: input.sourceUrl,
+        displayName: input.imageId,
+        groupKey: input.imageId,
+        sourceType: input.sourceType,
+        sourceLabel: input.sourceLabel,
+        sourceFile: input.sourceFile,
+    }));
 
-    // Let's build a unified list for rendering.
-    const displayItems = [...manifestItems];
+    // Get augmented items from manifest (filter out raw, as we're using inputSources for raw)
+    const augmentedItems = manifestItems.filter(item => item.stage === 'augmented');
+
+    // Build unified display list
+    const displayItems = [...baseInputItems, ...augmentedItems];
 
     // If running, merge results into displayItems
     if (jobStatus === 'running' && results.length > 0) {
@@ -377,9 +396,15 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                                             />
                                         )}
                                     </div>
-                                    {item.stage === 'raw' && (
-                                        <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 text-[10px] font-mono border rounded-sm shadow-sm">
-                                            RAW
+                                    {/* Source Badge */}
+                                    {item.stage === 'raw' && item.sourceLabel && (
+                                        <div className={`absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-mono border rounded-sm shadow-sm ${item.sourceType === 'crop'
+                                                ? 'bg-green-500/90 text-white border-green-600'
+                                                : item.sourceType === 'skip_crop'
+                                                    ? 'bg-yellow-500/90 text-white border-yellow-600'
+                                                    : 'bg-background/80 border'
+                                            }`}>
+                                            {item.sourceLabel}
                                         </div>
                                     )}
                                     {item.stage === 'augmented' && (
@@ -431,8 +456,13 @@ export default function AugmentationPage({ params }: { params: Promise<{ id: str
                                                 )}
                                             </div>
                                         ) : (
-                                            <div className="h-[21px] flex items-center">
-                                                <span className="text-muted-foreground">Original Source</span>
+                                            <div className="space-y-0.5">
+                                                <div className="text-muted-foreground">Original Source</div>
+                                                {item.sourceFile && item.sourceFile !== item.displayName && (
+                                                    <div className="text-[9px] text-muted-foreground/80">
+                                                        Input: {item.sourceFile}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         <div className="truncate text-muted-foreground max-w-full" title={item.displayName}>
