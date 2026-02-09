@@ -18,6 +18,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
 
+
+        // Security check
+        if (variantFile.includes('..') || !/^[a-z0-9_.-]+$/i.test(variantFile)) {
+            return NextResponse.json({ error: 'Invalid variant file name' }, { status: 400 });
+        }
+
         const projectDir = path.join(process.cwd(), 'projects', id);
         const cropDir = path.join(projectDir, 'cropped', imageId);
         const metaPath = path.join(cropDir, 'meta.json');
@@ -29,6 +35,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             const metaData = await fs.readFile(metaPath, 'utf-8');
             meta = JSON.parse(metaData);
         } catch {
+            // If meta missing, maybe just try to delete file? 
+            // But requirement says "update meta". 
+            // If meta is missing, we can't update it.
+            // But we can still validly say "it's gone".
+            // Let's stick to current logic: if no meta, we can't manage variants.
             return NextResponse.json({ error: 'Crop metadata not found' }, { status: 404 });
         }
 
@@ -44,10 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         // If active was deleted
         if (meta.activeCrop === variantFile) {
-            // Set to latest or null
             if (meta.variants.length > 0) {
-                // Assuming variants are ordered by creation? Or sort by createdAt
-                // They are pushed roughly in order.
                 meta.activeCrop = meta.variants[meta.variants.length - 1].file;
             } else {
                 meta.activeCrop = null;
@@ -59,7 +67,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         // Update stats
         await updateProjectStats(id);
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({
+            ok: true,
+            deleted: true,
+            activeCrop: meta.activeCrop,
+            remaining: meta.variants.length
+        });
 
     } catch (error) {
         console.error('Delete variant error:', error);

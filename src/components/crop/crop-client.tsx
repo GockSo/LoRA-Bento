@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { CheckCircle, RotateCcw, Scissors, ArrowRight, Settings2, Sparkles, Loader2 } from 'lucide-react';
 import { ManageCropsModal } from './manage-crops-modal';
 import { ReviewAutoCropModal } from './review-auto-crop-modal';
+import { ImagePreviewModal } from '@/components/ui/image-preview-modal';
 
 interface CropVariant {
     file: string;
@@ -73,6 +74,10 @@ export function CropClient({ projectId, images }: CropClientProps) {
     const [autoCropJobId, setAutoCropJobId] = useState<string | null>(null);
     const [autoCropProposals, setAutoCropProposals] = useState<any[]>([]);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+    // Preview Modal State
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [previewIndex, setPreviewIndex] = useState(0);
 
     // Fetch crop variants when image selected
     const fetchVariants = useCallback(async () => {
@@ -152,12 +157,15 @@ export function CropClient({ projectId, images }: CropClientProps) {
         setIsSaving(true);
         try {
             const image = imgRef.current;
+
             const bbox = {
                 x: completedCrop.x / image.width,
                 y: completedCrop.y / image.height,
                 w: completedCrop.width / image.width,
                 h: completedCrop.height / image.height
             };
+
+            console.log('[CropClient] Creating variant for:', selectedImage.id);
 
             const res = await fetch(`/api/projects/${projectId}/crop/variant/create`, {
                 method: 'POST', // Now creates a new variant
@@ -307,13 +315,21 @@ export function CropClient({ projectId, images }: CropClientProps) {
                     </div>
                     {/* Mini thumbnails of crops */}
                     <div className="flex gap-1">
-                        {variants.slice(0, 5).map(v => (
-                            <div key={v.file} title={v.file} className={cn(
-                                "w-6 h-6 relative rounded overflow-hidden border",
-                                activeCropFile === v.file ? "border-primary" : "border-transparent"
-                            )}>
+                        {variants.slice(0, 5).map((v, idx) => (
+                            <button
+                                key={v.file}
+                                title={v.file}
+                                onClick={() => {
+                                    setPreviewIndex(idx);
+                                    setIsPreviewOpen(true);
+                                }}
+                                className={cn(
+                                    "w-6 h-6 relative rounded overflow-hidden border transition-all hover:ring-2 hover:ring-primary/50",
+                                    activeCropFile === v.file ? "border-primary" : "border-transparent"
+                                )}
+                            >
                                 {v.url && <Image src={v.url} alt={v.file} fill className="object-cover" />}
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>
@@ -338,8 +354,9 @@ export function CropClient({ projectId, images }: CropClientProps) {
                             )}
                         >
                             <div className="relative w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
+
                                 <Image
-                                    src={img.croppedUrl || img.rawUrl}
+                                    src={img.rawUrl}
                                     alt={img.id}
                                     fill
                                     sizes="48px"
@@ -383,6 +400,48 @@ export function CropClient({ projectId, images }: CropClientProps) {
                     variants={variants}
                     activeCrop={activeCropFile}
                     onUpdate={handleRefresh}
+                />
+            )}
+
+            {selectedImage && (
+                <ImagePreviewModal
+                    isOpen={isPreviewOpen}
+                    onClose={() => setIsPreviewOpen(false)}
+                    images={variants}
+                    selectedIndex={previewIndex}
+                    onIndexChange={setPreviewIndex}
+                    onSetActive={async (file) => {
+                        // Re-implement set active logic here or abstract it?
+                        // Let's duplicate the fetch call for now as it's simple
+                        const res = await fetch(`/api/projects/${projectId}/crop/variant/set-active`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageId: selectedImage.id, variantFile: file })
+                        });
+                        if (!res.ok) throw new Error('Failed to set active');
+                        toast.success('Active crop updated');
+                        handleRefresh();
+                    }}
+                    onDelete={async (file) => {
+                        const res = await fetch(`/api/projects/${projectId}/crop/variant/delete`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageId: selectedImage.id, variantFile: file })
+                        });
+                        if (!res.ok) throw new Error('Failed to delete');
+                        toast.success('Variant deleted');
+                        handleRefresh();
+                        // If we deleted the only variant, close
+                        if (variants.length <= 1) {
+                            setIsPreviewOpen(false);
+                        } else {
+                            // Adjust index if needed
+                            if (previewIndex >= variants.length - 1) {
+                                setPreviewIndex(Math.max(0, variants.length - 2));
+                            }
+                        }
+                    }}
+                    activeCropFile={activeCropFile}
                 />
             )}
 

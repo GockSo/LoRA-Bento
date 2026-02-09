@@ -40,17 +40,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             // We could scan for files if we wanted to be robust, but for now return empty.
         }
 
+
         // Enhance variants with URLs
-        const enrichedVariants = meta.variants.map((v: any) => {
-            const variantPath = path.join(cropDir, v.file);
+        const enrichedVariants = await Promise.all(meta.variants.map(async (v: any) => {
+            // New URL format: /api/projects/:id/files/cropped/:imageId/:variantFile
+            // This maps to projects/:id/cropped/imageId/variantFile
+            let mtimeMs = Date.now();
+            try {
+                const variantPath = path.join(cropDir, v.file);
+                const stats = await fs.stat(variantPath);
+                mtimeMs = stats.mtimeMs;
+            } catch {
+                // file might be missing
+            }
+
+            const url = `/api/projects/${id}/files/cropped/${imageId}/${v.file}?v=${mtimeMs}`;
+            // Use local thumb route
+            const thumbUrl = `/api/projects/${id}/thumb/cropped/${imageId}/${v.file}?v=${mtimeMs}`;
+
             return {
                 ...v,
-                url: `/api/images?path=${encodeURIComponent(variantPath)}`
+                url,
+                thumbUrl
             };
-        });
+        }));
 
         const activeCropUrl = meta.activeCrop
-            ? `/api/images?path=${encodeURIComponent(path.join(cropDir, meta.activeCrop))}`
+            ? `/api/projects/${id}/files/cropped/${imageId}/${meta.activeCrop}?v=${Date.now()}` // active crop might need real mtime too, but for single file simpler to just bust
             : null;
 
         return NextResponse.json({

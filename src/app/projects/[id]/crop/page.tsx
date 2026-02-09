@@ -41,29 +41,33 @@ export default async function CropPage({
     const croppedFiles = await fs.readdir(croppedDir);
     const croppedSet = new Set(croppedFiles);
 
+
     // Build image list
     const images = await Promise.all(imageFiles.map(async (file) => {
         const rawPath = path.join(rawDir, file);
         const croppedPath = path.join(croppedDir, file);
+        // Check if cropped directory exists
         const isCropped = croppedSet.has(file);
 
-        // Get dimensions (optional, helpful for UI aspect ratio but not strictly required if client loads image)
-        // We can skip this to save time, client will get undefined dimensions until image loads
-        let width = 0;
-        let height = 0;
+        let mtime = Date.now();
+        try {
+            const stat = await fs.stat(rawPath);
+            mtime = stat.mtime.getTime();
+        } catch { }
 
         // Construct URLs
-        // Note: we need to use absolute paths for the API route we saw earlier
-        const rawUrl = `/api/images?path=${encodeURIComponent(rawPath)}`;
-        const croppedUrl = isCropped ? `/api/images?path=${encodeURIComponent(croppedPath)}` : null;
+        const rawUrl = `/api/images?path=${encodeURIComponent(rawPath)}&v=${mtime}`;
+        // croppedUrl is not used in sidebar anymore, and pointing it to a directory breaks things.
+        // We set it to null or we could resolve the active crop if needed, but for now null is safer.
+        const croppedUrl = null;
 
         return {
             id: file,
             rawUrl,
             croppedUrl,
             isCropped,
-            width,
-            height
+            width: 0,
+            height: 0
         };
     }));
 

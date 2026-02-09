@@ -14,6 +14,8 @@ interface CropVariant {
     source: string;
     confidence?: number;
     createdAt: string;
+    url?: string;
+    thumbUrl?: string;
 }
 
 interface ManageCropsModalProps {
@@ -83,79 +85,74 @@ export function ManageCropsModal({ isOpen, onClose, projectId, imageId, variants
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {variants.map((v) => (
-                                <div key={v.file} className={cn(
-                                    "relative group border rounded-lg p-2 transition-all",
-                                    activeCrop === v.file ? "ring-2 ring-primary border-primary bg-primary/5" : "hover:border-primary/50"
-                                )}>
-                                    <div className="aspect-square relative bg-muted rounded overflow-hidden">
-                                        {/* We need a way to serve the specific variant. 
-                                            The API structure implies we can access them. 
-                                            Earlier code showed: /api/images?path=...
-                                            We need to construct the path or have an endpoint.
-                                            Let's assume a helper or use the same list logic.
-                                            Actually, projects.ts implies we might access them via standard image API if we know the path.
-                                            The path is projects/<id>/cropped/<imageId>/<variantFile>
-                                         */}
-                                        <Image
-                                            src={`/api/images?path=${encodeURIComponent(`projects/${projectId}/cropped/${imageId}/${v.file}`)}`} // Construct path relative to project root? API needs absolute or relative? 
-                                            // The image API usually takes an absolute path. 
-                                            // Let's rely on the parent component passing a base URL or construct it if we know the root.
-                                            // Wait, the client doesn't know the absolute server path.
-                                            // The `api/images` route likely handles security.
-                                            // Let's fetch the list with URLs from the server instead of constructing here, OR
-                                            // Use a dedicated endpoint for serving variants if `api/images` requires absolute path.
-                                            // Checking `CropClient`, it uses `rawUrl` which comes from `page.tsx`.
-                                            // `page.tsx` constructed `api/images?path=...absolute...`.
-                                            // We need the absolute path here.
-                                            // For now, let's try to assume we can get it from the parent or the `list` endpoint returns URLs.
-                                            // I will update the `list` endpoint to return URLs or the client to resolve them.
-                                            // Update: `page.tsx` calculates absolute path.
-                                            // I'll update the component to accept a `basePath` or similar, OR update `list` endpoint to return usable URLs.
-                                            // Let's assume the `list` endpoint returns usable URLs.
-                                            // For this step I'll put a placeholder and fix it in integration.
-                                            alt={v.file}
-                                            fill
-                                            className="object-contain"
-                                        />
-                                        {activeCrop === v.file && (
-                                            <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 shadow-sm">
-                                                <Check className="w-3 h-3" />
-                                            </div>
-                                        )}
-                                    </div>
+                            {variants.map((v) => {
+                                // Use thumbUrl if available, else fallback
+                                const displayUrl = v.thumbUrl || v.url;
+                                // Unique key using file + url (which includes version) to force re-render if version changes
+                                const uniqueKey = `${v.file}-${displayUrl}`;
 
-                                    <div className="mt-2 text-xs flex justify-between items-center">
-                                        <div className="truncate font-medium">{v.file}</div>
-                                        <div className="text-muted-foreground">{v.source}</div>
-                                    </div>
+                                return (
+                                    <div key={uniqueKey} className={cn(
+                                        "relative group border rounded-lg p-2 transition-all",
+                                        activeCrop === v.file ? "ring-2 ring-primary border-primary bg-primary/5" : "hover:border-primary/50"
+                                    )}>
+                                        <div className="aspect-square relative bg-muted rounded overflow-hidden">
+                                            {displayUrl ? (
+                                                <Image
+                                                    src={displayUrl}
+                                                    alt={v.file}
+                                                    fill
+                                                    className="object-contain"
+                                                    unoptimized // Important for local blob/api serving sometimes, but here we want next image optim? Actually API serves headers.
+                                                // Actually, "unoptimized" might be safer for API routes if Next tries to optimize them again.
+                                                // But let's try without first or with unoptimized=true to be safe given the dynamic nature.
+                                                // Given we put cache control headers, let's let browser handle it.
+                                                />
+                                            ) : (
+                                                <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+                                                    No Preview
+                                                </div>
+                                            )}
 
-                                    <div className="mt-2 flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {activeCrop !== v.file && (
+                                            {activeCrop === v.file && (
+                                                <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 shadow-sm">
+                                                    <Check className="w-3 h-3" />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="mt-2 text-xs flex justify-between items-center">
+                                            <div className="truncate font-medium">{v.file}</div>
+                                            <div className="text-muted-foreground">{v.source}</div>
+                                        </div>
+
+                                        <div className="mt-2 flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {activeCrop !== v.file && (
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-6 w-6"
+                                                    onClick={() => handleSetActive(v.file)}
+                                                    title="Set Active"
+                                                    disabled={isProcessing}
+                                                >
+                                                    <Star className="w-3 h-3" />
+                                                </Button>
+                                            )}
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
-                                                className="h-6 w-6"
-                                                onClick={() => handleSetActive(v.file)}
-                                                title="Set Active"
+                                                className="h-6 w-6 text-destructive hover:text-destructive"
+                                                onClick={() => handleDelete(v.file)}
+                                                title="Delete"
                                                 disabled={isProcessing}
                                             >
-                                                <Star className="w-3 h-3" />
+                                                <Trash2 className="w-3 h-3" />
                                             </Button>
-                                        )}
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-6 w-6 text-destructive hover:text-destructive"
-                                            onClick={() => handleDelete(v.file)}
-                                            title="Delete"
-                                            disabled={isProcessing}
-                                        >
-                                            <Trash2 className="w-3 h-3" />
-                                        </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

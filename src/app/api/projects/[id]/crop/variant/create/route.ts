@@ -19,14 +19,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
 
+
         const projectDir = path.join(process.cwd(), 'projects', id);
         const rawPath = path.join(projectDir, 'raw', imageId);
         const cropDir = path.join(projectDir, 'cropped', imageId);
         const metaPath = path.join(cropDir, 'meta.json');
 
+        console.log(`[CreateCrop] imageId: ${imageId}`);
+        console.log(`[CreateCrop] rawPath: ${rawPath}`);
+        console.log(`[CreateCrop] cropDir: ${cropDir}`);
+
+        // Security / Sanity check
+        if (imageId.includes('..') || imageId.includes('/') || imageId.includes('\\')) {
+            return NextResponse.json({ error: 'Invalid imageId' }, { status: 400 });
+        }
+
         // Check raw image
         try {
-            await fs.access(rawPath);
+            const stat = await fs.stat(rawPath);
+            if (!stat.isFile()) {
+                return NextResponse.json({ error: 'Raw path is not a file' }, { status: 400 });
+            }
         } catch {
             return NextResponse.json({ error: 'Raw image not found' }, { status: 404 });
         }
@@ -44,17 +57,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         }
 
         // Generate new crop filename
-        // Find next index
-        let nextIndex = 1;
-        const existingIndices = meta.variants.map((v: any) => {
-            const match = v.file.match(/crop_(\d+)\.png/);
-            return match ? parseInt(match[1]) : 0;
-        });
-        if (existingIndices.length > 0) {
-            nextIndex = Math.max(...existingIndices) + 1;
+        // Find next index from meta or scan
+        let nextIndex = meta.nextIndex;
+        if (typeof nextIndex !== 'number') {
+            // Fallback: scan existing variants to find max index
+            let maxIndex = 0;
+            const existingIndices = meta.variants.map((v: any) => {
+                const match = v.file.match(/crop_(\d+)\.png/);
+                return match ? parseInt(match[1]) : 0;
+            });
+            if (existingIndices.length > 0) {
+                maxIndex = Math.max(...existingIndices);
+            }
+            nextIndex = maxIndex + 1;
         }
+
         const newCropFile = `crop_${String(nextIndex).padStart(3, '0')}.png`;
         const newCropPath = path.join(cropDir, newCropFile);
+
+        // meaningful increment
+        meta.nextIndex = nextIndex + 1;
 
         // Perform Crop
         const image = sharp(rawPath);
