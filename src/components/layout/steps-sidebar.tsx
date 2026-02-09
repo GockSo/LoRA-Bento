@@ -42,6 +42,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { UpdatePrompt } from '@/components/layout/update-prompt';
 
 export function StepsSidebar({ project }: StepsSidebarProps) {
     const pathname = usePathname();
@@ -117,6 +118,9 @@ export function StepsSidebar({ project }: StepsSidebarProps) {
                         {t('settings.title')}
                     </Button>
                 </div>
+
+                {/* Update Prompt */}
+                <UpdatePrompt />
 
                 {/* Credits Row */}
                 {/* <div className="flex items-center justify-between px-1 pt-2">
