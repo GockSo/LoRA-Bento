@@ -34,14 +34,26 @@ interface TrainingConfigFormProps {
     disabled?: boolean;
 }
 
+// Square Only
+const RESOLUTIONS = [512, 768, 1024];
+
 export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfigFormProps) {
+    // Initial resolution logic
+    const initialSize = project.settings?.targetSize || 1024;
+    // Find nearest preset
+    const nearest = RESOLUTIONS.reduce((prev, curr) => {
+        return (Math.abs(curr - initialSize) < Math.abs(prev - initialSize) ? curr : prev);
+    });
+
+    const isSnapped = nearest !== initialSize;
+
     // Default values
     const [config, setConfig] = useState<TrainingConfig>({
         pretrainedModelPath: '', // User must fill
         outputName: project.name.replace(/\s+/g, '_'),
         outputDir: `projects/${project.id}/train_outputs`, // default relative path
-        width: project.settings?.targetSize || 512,
-        height: project.settings?.targetSize || 512,
+        width: nearest,
+        height: nearest,
         batchSize: 1,
         epochs: 10,
         saveEveryNSteps: 500,
@@ -57,6 +69,8 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
         repeats: 40,
         trainerScriptPath: 'D:/train_script/sd-scripts/sdxl_train_network.py'
     });
+
+    const [wasSnapped] = useState(isSnapped);
 
     const handleChange = (field: keyof TrainingConfig, value: any) => {
         setConfig(prev => ({ ...prev, [field]: value }));
@@ -134,21 +148,28 @@ export function TrainingConfigForm({ project, onStart, disabled }: TrainingConfi
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Resolution (W x H)</Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    type="number"
-                                    value={config.width}
-                                    onChange={e => handleChange('width', parseInt(e.target.value))}
+                            <Label>Resolution</Label>
+                            <div className="space-y-2">
+                                <select
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={config.width} // Both will be same
+                                    onChange={(e) => {
+                                        const res = parseInt(e.target.value);
+                                        setConfig(prev => ({ ...prev, width: res, height: res }));
+                                    }}
                                     disabled={disabled}
-                                />
-                                <span className="pt-2">x</span>
-                                <Input
-                                    type="number"
-                                    value={config.height}
-                                    onChange={e => handleChange('height', parseInt(e.target.value))}
-                                    disabled={disabled}
-                                />
+                                >
+                                    {RESOLUTIONS.map(res => (
+                                        <option key={res} value={res} className="bg-popover text-popover-foreground">
+                                            {res} × {res}
+                                        </option>
+                                    ))}
+                                </select>
+                                {wasSnapped && (
+                                    <p className="text-xs text-yellow-500">
+                                        Note: Resolution was adjusted to the nearest supported square preset.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
