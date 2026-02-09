@@ -18,7 +18,7 @@ export function MainNav() {
                     <Link href="/" className="text-sm font-medium transition-colors hover:text-primary">
                         {t('nav.dashboard')}
                     </Link>
-                    <a href="https://github.com/google-deepmind/antigravity" target="_blank" rel="noreferrer" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+                    <a href="https://github.com/GockSo/LoRA-Bento" target="_blank" rel="noreferrer" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
                         {t('nav.github')}
                     </a>
                 </nav>

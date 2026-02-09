@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useSettings } from './settings-provider';
-import { t } from '@/lib/i18n';
+import { useTranslation } from 'react-i18next';
 import {
     Dialog,
     DialogContent,
@@ -12,18 +12,21 @@ import {
 } from '@/components/ui/dialog';
 import { Button, Card, CardContent } from '@/components/ui/core';
 import { cn } from '@/lib/utils';
-import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Sun, Github, Copy } from 'lucide-react';
+import { CivitAIIconV2 } from '@/components/icons/brand-icons';
+import { toast } from 'sonner';
 
 export function SettingsModal() {
     const { isSettingsOpen, closeSettings, language, theme, setLanguage, setTheme } = useSettings();
+    const { t } = useTranslation('common');
 
     return (
         <Dialog open={isSettingsOpen} onOpenChange={(open) => !open && closeSettings()}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{t('settings.title', language)}</DialogTitle>
+                    <DialogTitle>{t('settings.title')}</DialogTitle>
                     <DialogDescription className="sr-only">
-                        {t('settings.title', language)}
+                        {t('settings.title')}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -31,7 +34,7 @@ export function SettingsModal() {
                     {/* Language Section */}
                     <div className="space-y-3">
                         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {t('settings.language', language)}
+                            {t('settings.language')}
                         </label>
                         <div className="flex rounded-md shadow-sm">
                             <Button
@@ -64,7 +67,7 @@ export function SettingsModal() {
                     {/* Theme Section */}
                     <div className="space-y-3">
                         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {t('settings.theme', language)}
+                            {t('settings.theme')}
                         </label>
                         <div className="grid grid-cols-3 gap-3">
                             {/* Light Theme */}
@@ -82,7 +85,7 @@ export function SettingsModal() {
                                     </div>
                                     <div className="flex items-center justify-center gap-2 text-xs font-medium">
                                         <Sun className="h-3 w-3" />
-                                        {t('settings.theme.light', language)}
+                                        {t('settings.theme.light')}
                                     </div>
                                 </div>
                             </div>
@@ -102,7 +105,7 @@ export function SettingsModal() {
                                     </div>
                                     <div className="flex items-center justify-center gap-2 text-xs font-medium">
                                         <Moon className="h-3 w-3" />
-                                        {t('settings.theme.dark', language)}
+                                        {t('settings.theme.dark')}
                                     </div>
                                 </div>
                             </div>
@@ -123,11 +126,70 @@ export function SettingsModal() {
                                     </div>
                                     <div className="flex items-center justify-center gap-2 text-xs font-medium">
                                         <span className="text-[10px] leading-none">✨</span>
-                                        {t('settings.theme.gockso', language)}
+                                        {t('settings.theme.gockso')}
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    {/* About / Credits Section */}
+                    <div className="space-y-3 pt-4 border-t">
+                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            {t('credits.title')}
+                        </label>
+                        <Card>
+                            <CardContent className="p-4 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                            <CivitAIIconV2 className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-medium">{t('credits.created_by')} GockSo</div>
+                                            <a
+                                                href="https://civitai.com/user/GockSo"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                                            >
+                                                civitai.com/user/GockSo
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <a
+                                        href="https://github.com/GockSo/LoRA-Bento"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Button variant="ghost" size="icon">
+                                            <Github className="w-5 h-5" />
+                                        </Button>
+                                    </a>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="text-xs font-medium text-muted-foreground">
+                                        {t('credits.donate_label')}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs w-full truncate border">
+                                            {t('credits.wallet_address')}
+                                        </code>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 shrink-0"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(t('credits.wallet_address'));
+                                                toast.success(t('credits.copied'));
+                                            }}
+                                        >
+                                            <Copy className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             </DialogContent>

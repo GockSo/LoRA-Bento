@@ -146,5 +146,15 @@
         "set_active": "设为激活",
         "active": "激活",
         "continue": "继续"
+    },
+    "credits": {
+        "title": "关于 / 致谢",
+        "created_by": "创建者",
+        "civitai_tooltip": "CivitAI 个人主页 (GockSo)",
+        "github_tooltip": "GitHub 代码库",
+        "donate_tooltip": "捐赠 (USDT) — 点击复制",
+        "donate_label": "捐赠 (USDT - TRC20/ERC20)",
+        "copied": "已复制 (USDT)",
+        "wallet_address": "0x333d2dF49dbB6d5a833576224Ee26537da136Fbc"
     }
 }

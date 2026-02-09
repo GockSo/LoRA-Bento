@@ -33,11 +33,28 @@ const steps = [
     { id: 'train', key: 'sidebar.train', icon: BarChart, path: 'train' },
 ];
 
+import { toast } from 'sonner';
+import { CivitAIIconV2, TetherIcon } from '@/components/icons/brand-icons';
+import { Github, Copy } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 export function StepsSidebar({ project }: StepsSidebarProps) {
     const pathname = usePathname();
     const currentStep = pathname.split('/').pop() || 'raw';
     const { openSettings } = useSettings();
     const { t } = useTranslation('common');
+
+    const handleCopy = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigator.clipboard.writeText(t('credits.wallet_address'));
+        toast.success(t('credits.copied'));
+    };
 
     return (
         <div className="w-64 border-r bg-card flex flex-col h-full">
@@ -69,16 +86,7 @@ export function StepsSidebar({ project }: StepsSidebarProps) {
                 </nav>
             </div>
 
-            <div className="p-4 border-t bg-muted/20">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start gap-2 mb-4 text-muted-foreground"
-                    onClick={openSettings}
-                >
-                    <Settings className="h-4 w-4" />
-                    {t('settings.title')}
-                </Button>
+            <div className="p-4 border-t bg-muted/20 space-y-4">
                 <div className="space-y-2 text-xs text-muted-foreground">
                     <div className="text-xs text-muted-foreground mt-1 flex justify-between">
                         <span>{project.stats.total} {t('sidebar.images')}</span>
@@ -97,6 +105,69 @@ export function StepsSidebar({ project }: StepsSidebarProps) {
                         <span className="font-mono">{project.stats.processed}</span>
                     </div>
                 </div>
+
+                <div className="pt-2 border-t border-border/50">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-2 text-muted-foreground"
+                        onClick={openSettings}
+                    >
+                        <Settings className="h-4 w-4" />
+                        {t('settings.title')}
+                    </Button>
+                </div>
+
+                {/* Credits Row */}
+                {/* <div className="flex items-center justify-between px-1 pt-2">
+                    <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <a
+                                    href="https://civitai.com/user/GockSo"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                >
+                                    <CivitAIIconV2 className="h-4 w-4" />
+                                </a>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>{t('credits.civitai_tooltip')}</p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <a
+                                    href="https://github.com/GockSo/LoRA-Bento" // Using current repo URL or placeholder
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                >
+                                    <Github className="h-4 w-4" />
+                                </a>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>{t('credits.github_tooltip')}</p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={handleCopy}
+                                    className="text-muted-foreground hover:text-green-500 transition-colors p-1"
+                                >
+                                    <TetherIcon className="h-4 w-4" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>{t('credits.donate_tooltip')}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div> */}
             </div>
         </div>
     );

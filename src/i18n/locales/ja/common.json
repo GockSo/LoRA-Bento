@@ -146,5 +146,15 @@
         "set_active": "アクティブに設定",
         "active": "アクティブ",
         "continue": "続ける"
+    },
+    "credits": {
+        "title": "クレジット / 概要",
+        "created_by": "作成者",
+        "civitai_tooltip": "CivitAI プロフィール (GockSo)",
+        "github_tooltip": "GitHub リポジトリ",
+        "donate_tooltip": "寄付 (USDT) — クリックしてコピー",
+        "donate_label": "寄付 (USDT - TRC20/ERC20)",
+        "copied": "コピーしました (USDT)",
+        "wallet_address": "0x333d2dF49dbB6d5a833576224Ee26537da136Fbc"
     }
 }

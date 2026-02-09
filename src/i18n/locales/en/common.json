@@ -146,5 +146,15 @@
         "set_active": "Set Active",
         "active": "Active",
         "continue": "Continue"
+    },
+    "credits": {
+        "title": "About / Credits",
+        "created_by": "Created by",
+        "civitai_tooltip": "CivitAI profile (GockSo)",
+        "github_tooltip": "GitHub repository",
+        "donate_tooltip": "Donate (USDT) — click to copy",
+        "donate_label": "Donate (USDT - TRC20/ERC20)",
+        "copied": "Copied (USDT)",
+        "wallet_address": "0x333d2dF49dbB6d5a833576224Ee26537da136Fbc"
     }
 }
