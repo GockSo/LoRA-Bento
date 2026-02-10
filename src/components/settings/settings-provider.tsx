@@ -55,6 +55,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
     const applyTheme = (theme: Theme) => {
         const root = document.documentElement;
+
+        // IMPORTANT: set for ALL themes (including light)
+        root.dataset.theme = theme; // "light" | "dark" | "gockso"
+
+        // Tailwind dark variant
+        root.classList.toggle("dark", theme === "dark");
+
+        // Force browser UI scheme (Safari/Chrome macOS)
+        root.style.colorScheme = theme === "dark" ? "dark" : "light";
+
+
         root.classList.remove('dark');
         root.removeAttribute('data-theme');
 
@@ -65,6 +76,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         } else if (theme === 'gockso') {
             root.setAttribute('data-theme', 'gockso');
             root.style.colorScheme = 'light';
+
         } else {
             // Light theme
             root.style.colorScheme = 'light';

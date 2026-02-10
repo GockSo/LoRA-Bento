@@ -6,6 +6,21 @@
 
   /* Default theme (Light) - uses :root as base */
   /* Explicit color-scheme prevents macOS from overriding based on system preference */
+  /* Force UA controls (scrollbar/input) to follow our theme, not macOS */
+  html[data-theme="light"],
+  html[data-theme="gockso"] {
+    color-scheme: light;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  /* Safety fallback (in case data-theme is missing) */
+  html {
+    color-scheme: light;
+  }
+
   :root {
     color-scheme: light;
 
@@ -76,6 +91,7 @@
   }
 
   /* GockSo theme - custom pastel theme using data-theme attribute */
+
   html[data-theme="gockso"] {
     color-scheme: light;
 
