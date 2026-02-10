@@ -205,6 +205,8 @@ export async function getBehindCount(branch: string): Promise<number> {
  * - force checkout to avoid "stale working tree" weirdness
  */
 export async function checkoutTag(tag: string) {
+    await runGit(['reset', '--hard', 'head']);
+
     // Make sure the tag exists locally even if local tags are stale
     await runGit(['fetch', 'origin', 'tag', tag, '--force']);
     // Detached HEAD at tag (expected behavior for tag checkout)
