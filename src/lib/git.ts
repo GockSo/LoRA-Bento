@@ -207,6 +207,8 @@ export async function getBehindCount(branch: string): Promise<number> {
 export async function checkoutTag(tag: string) {
     await runGit(['reset', '--hard', 'head']);
 
+    await runGit(['clean', '-fdx']);
+
     // Make sure the tag exists locally even if local tags are stale
     await runGit(['fetch', 'origin', 'tag', tag, '--force']);
     // Detached HEAD at tag (expected behavior for tag checkout)
