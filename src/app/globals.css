@@ -3,7 +3,17 @@
 @tailwind utilities;
 
 @layer base {
+
   :root {
+    /* Shared variables or defaults can go here if absolutely needed,
+         but we are moving specific theme tokens to their respective classes 
+         to prevent system theme overrides. */
+    --radius: 0.5rem;
+  }
+
+  .theme-light {
+    color-scheme: light;
+
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -35,37 +45,9 @@
     --radius: 0.5rem;
   }
 
-  .theme-light {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-  }
-
   .theme-gockso {
+    color-scheme: light;
+
     /* Gock So Theme - Pastel/Cute */
     /* Background: very light pink-tinted off-white #FFF7FB */
     --background: 315 25% 98%;
@@ -108,7 +90,11 @@
     /* Rounded-2xl look */
   }
 
-  .dark {
+  /* Support both .dark class (Tailwind default) and .theme-dark (Our custom logic) */
+  .dark,
+  .theme-dark {
+    color-scheme: dark;
+
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
@@ -136,6 +122,8 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    --radius: 0.5rem;
   }
 }
 

@@ -41,6 +41,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             .then((data) => {
                 setSettings(data);
                 applyTheme(data.theme);
+                // Sync to localStorage for next load (FOUC prevention)
+                if (data.theme) {
+                    localStorage.setItem('theme', data.theme);
+                }
                 // Sync i18n language
                 if (data.language) {
                     i18n.changeLanguage(data.language);
@@ -75,6 +79,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
         if (newSettings.theme) {
             applyTheme(newSettings.theme);
+            localStorage.setItem('theme', newSettings.theme);
         }
 
         if (newSettings.language) {

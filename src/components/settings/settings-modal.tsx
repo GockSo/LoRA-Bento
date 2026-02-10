@@ -215,6 +215,18 @@ export function SettingsModal() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Debug Info (Dev only, or hidden but useful) */}
+                        <div className="text-[10px] text-muted-foreground text-center pt-2 opacity-50 font-mono">
+                            Theme: {theme} | Scheme: <span id="debug-scheme">auto</span>
+                            <script dangerouslySetInnerHTML={{
+                                __html: `
+                                    try {
+                                        document.getElementById('debug-scheme').innerText = getComputedStyle(document.documentElement).colorScheme;
+                                    } catch(e){}
+                                `
+                            }} />
+                        </div>
                     </div>
                 </div>
             </DialogContent>

@@ -30,6 +30,27 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased connection-monitor`}
       >
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var savedTheme = localStorage.getItem('theme') || 'light';
+                  var root = document.documentElement;
+                  root.classList.remove('theme-light', 'theme-dark', 'theme-gockso', 'dark');
+                  
+                  if (savedTheme === 'dark') {
+                    root.classList.add('theme-dark', 'dark');
+                  } else if (savedTheme === 'gockso') {
+                    root.classList.add('theme-gockso');
+                  } else {
+                    root.classList.add('theme-light');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         <SettingsProvider>
           <OnboardingGate>
             {children}
