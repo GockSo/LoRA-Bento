@@ -68,7 +68,7 @@ export async function isInsideWorkTree(): Promise<boolean> {
 
 export async function isDirty(): Promise<boolean> {
     try {
-        await runGit(['reset', '--hard', 'head']);
+        await runGit(['stash']);
 
         await runGit(['clean', '-fdx']);
 
