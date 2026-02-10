@@ -76,6 +76,8 @@
         "review_auto_title": "审核自动裁剪建议 ({{count}})",
         "selected_count": "已选择 {{count}} 项",
         "apply_selected": "应用所选",
+        "select_all": "全选",
+        "clear_all": "清除全部",
         "preview_title": "图片预览",
         "preview_desc": "裁剪变体预览"
     },

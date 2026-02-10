@@ -40,6 +40,15 @@ export function ReviewAutoCropModal({ isOpen, onClose, projectId, proposals, ima
         setSelectedProposals(next);
     };
 
+    const handleToggleAll = () => {
+        // If all proposals are selected, clear all; otherwise, select all
+        if (selectedProposals.size === proposals.length) {
+            setSelectedProposals(new Set());
+        } else {
+            setSelectedProposals(new Set(proposals.map((_, i) => i)));
+        }
+    };
+
     const handleApplySelected = async () => {
         setIsApplying(true);
         try {
@@ -131,8 +140,21 @@ export function ReviewAutoCropModal({ isOpen, onClose, projectId, proposals, ima
                 </div>
 
                 <DialogFooter className="flex justify-between items-center border-t p-2">
-                    <div className="text-sm text-muted-foreground">
-                        {t('crop.selected_count', { count: selectedProposals.size })}
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleToggleAll}
+                            className="text-xs"
+                        >
+                            {selectedProposals.size === proposals.length
+                                ? t('crop.clear_all')
+                                : t('crop.select_all')
+                            }
+                        </Button>
+                        <div className="text-sm text-muted-foreground">
+                            {t('crop.selected_count', { count: selectedProposals.size })}
+                        </div>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={onClose}>{t('actions.cancel')}</Button>

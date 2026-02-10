@@ -76,6 +76,8 @@
         "review_auto_title": "Review Auto Crop Proposals ({{count}})",
         "selected_count": "{{count}} selected",
         "apply_selected": "Apply Selected",
+        "select_all": "Select all",
+        "clear_all": "Clear all",
         "preview_title": "Image Preview",
         "preview_desc": "Preview of crop variants"
     },

@@ -1,115 +1,134 @@
 # LoRA Bento
 
-Start-to-finish dataset preparation tool for Stable Diffusion LoRA training.
+Start-to-finish dataset preparation tool for Stable Diffusion LoRA training.  
 Run locally, private, and fast.
 
 ## Features
 
 - **Project Management**: Organize datasets in workspaces.
-- **Import**: Drag & Drop images or import folders.
+- **Import**: Drag & drop images or import folders.
+- **Crop (Auto / Manual)**: Optional cropping to focus subject (supports multiple crops per image).
 - **Augmentation**: Rotate, flip, and zoom to create variations.
-- **Preprocessing**: Smart resize and padding (Transparent/Solid/Blur) to target buckets (512, 768, etc).
+- **Resize & Pad**: Smart resize + padding (Transparent / Solid / Blur) to target buckets (512 / 768 / 1024).
 - **Captioning**: Auto-label with WD14 Tagger or BLIP (via local Python script).
-- **Analysis**: Keyword frequency analysis and prompt helper.
-- **Export**: Generate ready-to-train datasets (Images + Text files) compatible with Kohya-ss.
+- **Analysis & Export**: Review dataset stats and export training-ready dataset compatible with kohya-ss / sd-scripts.
+- **Train LoRA (Local)**: Optional local training using kohya-ss `sd-scripts` (SD1.5/SD2/SDXL supported where applicable).
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
-- Python 3.10+ (for captioning) installed and in your PATH.
-- `pip install torch torchvision torchaudio` (and other dependencies for your chosen caption script).
-  *Note: The included `scripts/caption.py` is a stub. You need to provide a real captioning script or install dependencies if using a real one.*
+- Python 3.10+ (for captioning and some training workflows)
+- Git (optional, for Auto Update / Local Trainer Setup)
+
+> Captioning and training scripts may require additional Python dependencies (Torch, etc.)
+> depending on the model and workflow you choose.
 
 ### Installation
 
-1. Clone the repository.
+1. Clone the repository
 2. Install dependencies:
    ```bash
    npm install
-   ```
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```   
-4. Open [http://localhost:3000](http://localhost:3000) with your browser.
+Run the dev server:
 
-## Workflow
+npm run dev
+Open:
+http://localhost:3000
 
-1. **Import**: Create a project and drop your raw images.
-2. **Augment**: (Optional) Generate variations to increase dataset size.
-3. **Resize**: Convert all images to standard resolutions (e.g., 512x512) with smart padding.
-4. **Caption**: Run the auto-captioner. Edit generated text files if needed.
-5. **Export**: Download the ZIP file and use it in your favorite LoRA trainer.
+Workflow (Recommended)
+Import
 
-## Project Structure
+Create a project and add your raw images.
 
-- `projects/`: Stores your datasets.
-  - `<id>/raw`: Original images.
-  - `<id>/augmented`: Augmented images.
-  - `<id>/processed`: Ready-to-train images and text files.
-- `src/`: Next.js source code.
-- `scripts/`: Python helper scripts.
+Crop (Optional)
 
-## License& Usage
+Auto crop proposals → review → apply.
 
-LoRA Bento is a source-available project.
+Or manual crop / “Use Raw” for specific images.
 
-You are free to:
+Augment (Optional)
 
-Use the software for personal, hobby, and research purposes
+Generate variations from the chosen input set (crop or skip-crop).
+
+Resize & Pad
+
+Resize all training images to your selected resolution with correct padding mode.
+
+Outputs are stored in resized/.
+
+Caption
+
+Caption images from resized/.
+
+Outputs are placed in train_data/ (images + .txt captions together).
+
+Export
+
+Export dataset from train_data/ (zip is created on demand).
+
+Train (Optional)
+
+Train locally using sd-scripts with the prepared dataset in train_data/.
+
+Project Structure
+projects/: Stores your datasets.
+
+<id>/raw/: Original images (imported).
+
+<id>/cropped/: Cropped variants per image.
+
+<id>/skip_crop/: Images copied here when user chooses “Skip Crop”.
+
+<id>/augmented/: Augmented outputs.
+
+<id>/resized/: Final resized & padded images used for captioning/training.
+
+<id>/train_data/: Training-ready dataset (images + .txt captions), structured for sd-scripts.
+
+src/: Next.js source code.
+
+scripts/: Local helper scripts (captioning/training integrations, etc.)
+
+train_script/: Local trainer setup folder (e.g., kohya-ss sd-scripts clone)
+
+# License & Usage
+LoRA Bento is source-available.
+
+✅ You are allowed to
+Use the software for personal, hobby, educational, and non-commercial research purposes
 
 Run it locally on your own machine
 
-Read, modify, and experiment with the source code
+Share unmodified copies for free (with this license/credits intact)
 
-However, commercial use is NOT permitted.
+❌ You are NOT allowed to
+Sell the software (in whole or in part)
 
-❌ Prohibited Uses
+Offer it as part of a paid product or paid service
 
-The following are not allowed without explicit written permission from the project author:
+Host it as a commercial SaaS / cloud service
 
-Selling the software, in whole or in part
+Distribute modified versions
 
-Offering it as part of a paid product or service
+Publish forks/patches/derivative builds
 
-Hosting it as a commercial SaaS / cloud service
+If you need commercial use or permission to modify/distribute changes, please contact the author for a separate license.
 
-Redistributing modified versions for commercial purposes
+This project is not Open Source under the OSI definition (due to non-commercial and no-derivatives restrictions).
 
-✅ Allowed Uses
+Credits & Donate
+CivitAI: https://civitai.com/user/GockSo
 
-Personal dataset preparation
+GitHub: (link your repo here)
 
-Non-commercial research and experimentation
-
-Educational use
-
-Local workflows for training personal models
-
-If you are interested in commercial use, redistribution, or SaaS licensing,
-please contact the project author to discuss a separate commercial license.
-
-License Type
-
-This project uses a Non-Commercial Source-Available License.
-
-This project is not Open Source under the OSI definition,
-but the source code is publicly available to ensure transparency, learning, and community collaboration.
-
-Why this license?
-
-LoRA Bento is designed to support creators, researchers, and the open ML community,
-while preventing closed-source commercial exploitation without contribution.
-
-This license ensures:
-
-Free access for individual creators
-
-Protection against uncredited commercial reuse
-
-A sustainable path for future development
+Donate (USDT): 0x333d2dF49dbB6d5a833576224Ee26537da136Fbc
 
 © 2026 LoRA Bento contributors. All rights reserved.
-Commercial use requires explicit permission.
+
+
+## Ref
+- https://github.com/kohya-ss/sd-scripts

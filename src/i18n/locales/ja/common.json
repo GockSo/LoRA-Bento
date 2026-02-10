@@ -76,6 +76,8 @@
         "review_auto_title": "自動クロップ提案の確認 ({{count}})",
         "selected_count": "{{count}} 件選択済み",
         "apply_selected": "選択したものを適用",
+        "select_all": "すべて選択",
+        "clear_all": "すべて解除",
         "preview_title": "画像プレビュー",
         "preview_desc": "クロップバリエーションのプレビュー"
     },
