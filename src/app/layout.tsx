@@ -42,10 +42,16 @@ export default function RootLayout({
                   
                   if (savedTheme === 'dark') {
                     root.classList.add('dark');
+                    root.style.colorScheme = 'dark';
+                    root.dataset.theme = 'dark';
                   } else if (savedTheme === 'gockso') {
                     root.setAttribute('data-theme', 'gockso');
+                    root.style.colorScheme = 'light';
+                    root.dataset.theme = 'gockso';
+                  } else {
+                    root.style.colorScheme = 'light';
+                    root.dataset.theme = 'light';
                   }
-                  // Light theme uses :root defaults (no classes/attributes)
                 } catch (e) {}
               })();
             `,

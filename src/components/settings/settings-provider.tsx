@@ -60,10 +60,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
         if (theme === 'dark') {
             root.classList.add('dark');
+            root.style.colorScheme = 'dark';
+            root.dataset.theme = 'dark';
         } else if (theme === 'gockso') {
             root.setAttribute('data-theme', 'gockso');
+            root.style.colorScheme = 'light';
+        } else {
+            // Light theme
+            root.style.colorScheme = 'light';
+            root.dataset.theme = 'light';
         }
-        // Light theme uses :root defaults (no classes/attributes)
     };
 
     const updateSettings = async (newSettings: Partial<AppSettings>) => {
