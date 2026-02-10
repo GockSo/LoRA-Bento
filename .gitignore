@@ -42,3 +42,5 @@ next-env.d.ts
 
 projects/*
 train_script/*
+
+data/*
