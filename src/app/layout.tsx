@@ -37,15 +37,15 @@ export default function RootLayout({
                 try {
                   var savedTheme = localStorage.getItem('theme') || 'light';
                   var root = document.documentElement;
-                  root.classList.remove('theme-light', 'theme-dark', 'theme-gockso', 'dark');
+                  root.classList.remove('dark');
+                  root.removeAttribute('data-theme');
                   
                   if (savedTheme === 'dark') {
-                    root.classList.add('theme-dark', 'dark');
+                    root.classList.add('dark');
                   } else if (savedTheme === 'gockso') {
-                    root.classList.add('theme-gockso');
-                  } else {
-                    root.classList.add('theme-light');
+                    root.setAttribute('data-theme', 'gockso');
                   }
+                  // Light theme uses :root defaults (no classes/attributes)
                 } catch (e) {}
               })();
             `,

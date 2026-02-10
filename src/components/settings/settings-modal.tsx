@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSettings } from './settings-provider';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,6 +20,20 @@ import { RefreshCw } from 'lucide-react';
 export function SettingsModal() {
     const { isSettingsOpen, closeSettings, language, theme, setLanguage, setTheme, setOnboardingCompleted } = useSettings();
     const { t } = useTranslation('common');
+
+    // Dev-only: Log theme state on mount
+    useEffect(() => {
+        if (process.env.NODE_ENV === 'development' && typeof document !== 'undefined') {
+            console.group('🎨 Theme Debug Info');
+            console.log('Active Theme:', theme);
+            console.log('html.className:', document.documentElement.className || '(none)');
+            console.log('data-theme:', document.documentElement.dataset.theme || '(none)');
+            console.log('color-scheme:', getComputedStyle(document.documentElement).colorScheme || 'normal');
+            console.log('--background:', getComputedStyle(document.documentElement).getPropertyValue('--background').trim());
+            console.log('--foreground:', getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim());
+            console.groupEnd();
+        }
+    }, [theme]);
 
     return (
         <Dialog open={isSettingsOpen} onOpenChange={(open) => !open && closeSettings()}>
@@ -216,17 +230,49 @@ export function SettingsModal() {
                             </CardContent>
                         </Card>
 
-                        {/* Debug Info (Dev only, or hidden but useful) */}
-                        <div className="text-[10px] text-muted-foreground text-center pt-2 opacity-50 font-mono">
-                            Theme: {theme} | Scheme: <span id="debug-scheme">auto</span>
-                            <script dangerouslySetInnerHTML={{
-                                __html: `
-                                    try {
-                                        document.getElementById('debug-scheme').innerText = getComputedStyle(document.documentElement).colorScheme;
-                                    } catch(e){}
-                                `
-                            }} />
-                        </div>
+                        {/* Debug Info (Dev Only) */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-muted text-xs font-mono space-y-2">
+                                <div className="font-bold text-foreground mb-2">🔍 Theme Debug (Dev Only)</div>
+                                <div className="space-y-1 text-muted-foreground">
+                                    <div><strong>Active Theme:</strong> {theme}</div>
+                                    <div><strong>html.className:</strong> {typeof document !== 'undefined' ? document.documentElement.className || '(none)' : 'N/A'}</div>
+                                    <div><strong>data-theme:</strong> {typeof document !== 'undefined' ? document.documentElement.dataset.theme || '(none)' : 'N/A'}</div>
+                                    <div>
+                                        <strong>color-scheme:</strong>{' '}
+                                        {typeof document !== 'undefined'
+                                            ? getComputedStyle(document.documentElement).colorScheme || 'normal'
+                                            : 'N/A'}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <strong>--background:</strong>
+                                        <span
+                                            style={{ background: 'hsl(var(--background))' }}
+                                            className="inline-block w-4 h-4 border border-foreground/20 rounded"
+                                        />
+                                        <span className="text-[10px]">
+                                            {typeof document !== 'undefined'
+                                                ? getComputedStyle(document.documentElement).getPropertyValue('--background').trim()
+                                                : ''}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <strong>--foreground:</strong>
+                                        <span
+                                            style={{ color: 'hsl(var(--foreground))' }}
+                                            className="font-bold"
+                                        >
+                                            Sample
+                                        </span>
+                                        <span className="text-[10px]">
+                                            {typeof document !== 'undefined'
+                                                ? getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim()
+                                                : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </DialogContent>

@@ -4,14 +4,9 @@
 
 @layer base {
 
+  /* Default theme (Light) - uses :root as base */
+  /* Explicit color-scheme prevents macOS from overriding based on system preference */
   :root {
-    /* Shared variables or defaults can go here if absolutely needed,
-         but we are moving specific theme tokens to their respective classes 
-         to prevent system theme overrides. */
-    --radius: 0.5rem;
-  }
-
-  .theme-light {
     color-scheme: light;
 
     --background: 0 0% 100%;
@@ -45,54 +40,8 @@
     --radius: 0.5rem;
   }
 
-  .theme-gockso {
-    color-scheme: light;
-
-    /* Gock So Theme - Pastel/Cute */
-    /* Background: very light pink-tinted off-white #FFF7FB */
-    --background: 315 25% 98%;
-    /* Javascript/Text: dark warm-gray #1F2430 */
-    --foreground: 222 21% 15%;
-
-    /* Surface: custom but mapping to card */
-    --card: 0 0% 100%;
-    --card-foreground: 222 21% 15%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 21% 15%;
-
-    /* Primary: soft strawberry milk pink #FF6FAE */
-    --primary: 334 100% 71%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary/Accent: lavender #B79CFF */
-    --secondary: 256 100% 80%;
-    --secondary-foreground: 222 21% 15%;
-
-    /* Muted: #6B7280 equivalent */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-
-    /* Accent again for hover maps */
-    --accent: 256 100% 90%;
-    --accent-foreground: 222 21% 15%;
-
-    /* Destructive: rose pastel #FF5A7A */
-    --destructive: 348 100% 67%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Border: gentle pink-gray #F2D6E6 */
-    --border: 326 50% 89%;
-    --input: 326 50% 89%;
-    --ring: 334 100% 71%;
-
-    --radius: 1rem;
-    /* Rounded-2xl look */
-  }
-
-  /* Support both .dark class (Tailwind default) and .theme-dark (Our custom logic) */
-  .dark,
-  .theme-dark {
+  /* Dark theme - uses .dark class for Tailwind compatibility */
+  html.dark {
     color-scheme: dark;
 
     --background: 222.2 84% 4.9%;
@@ -124,6 +73,47 @@
     --ring: 212.7 26.8% 83.9%;
 
     --radius: 0.5rem;
+  }
+
+  /* GockSo theme - custom pastel theme using data-theme attribute */
+  html[data-theme="gockso"] {
+    color-scheme: light;
+
+    /* Background: very light pink-tinted off-white #FFF7FB */
+    --background: 315 25% 98%;
+    /* Text: dark warm-gray #1F2430 */
+    --foreground: 222 21% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 21% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 21% 15%;
+
+    /* Primary: soft strawberry milk pink #FF6FAE */
+    --primary: 334 100% 71%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary/Accent: lavender #B79CFF */
+    --secondary: 256 100% 80%;
+    --secondary-foreground: 222 21% 15%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 256 100% 90%;
+    --accent-foreground: 222 21% 15%;
+
+    /* Destructive: rose pastel #FF5A7A */
+    --destructive: 348 100% 67%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border: gentle pink-gray #F2D6E6 */
+    --border: 326 50% 89%;
+    --input: 326 50% 89%;
+    --ring: 334 100% 71%;
+
+    --radius: 1rem;
   }
 }
 

@@ -55,19 +55,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
     const applyTheme = (theme: Theme) => {
         const root = document.documentElement;
-        root.classList.remove('theme-light', 'theme-dark', 'theme-gockso');
+        root.classList.remove('dark');
+        root.removeAttribute('data-theme');
 
-        // For 'dark' theme, we also add 'dark' class for Tailwind dark mode
         if (theme === 'dark') {
             root.classList.add('dark');
-            root.classList.add('theme-dark');
         } else if (theme === 'gockso') {
-            root.classList.remove('dark');
-            root.classList.add('theme-gockso');
-        } else {
-            root.classList.remove('dark');
-            root.classList.add('theme-light');
+            root.setAttribute('data-theme', 'gockso');
         }
+        // Light theme uses :root defaults (no classes/attributes)
     };
 
     const updateSettings = async (newSettings: Partial<AppSettings>) => {

@@ -184,7 +184,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                     )}
                 </CardContent>
                 <CardFooter className="pt-2 pb-6 px-6">
-                    <Button asChild className="w-full transition-transform active:scale-[0.98] theme-gockso:hover:scale-[1.01]">
+                    <Button asChild className="w-full transition-transform active:scale-[0.98]">
                         <Link href={`/projects/${project.id}/raw`}>
                             <FolderOpen className="mr-2 h-4 w-4" />
                             {t('dashboard.context_open')}
