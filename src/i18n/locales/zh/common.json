@@ -151,6 +151,75 @@
         "active": "激活",
         "continue": "继续"
     },
+    "caption_v2": {
+        "mode": {
+            "label": "标注模式",
+            "tags": "仅标签（快速）",
+            "caption": "仅描述（自然语言）",
+            "hybrid": "混合双通道（专业）"
+        },
+        "model": {
+            "tagger_label": "标签模型",
+            "captioner_label": "描述模型",
+            "wd14_legacy": "WD14（传统版）",
+            "wd14_convnext": "WD14（ConvNeXt）",
+            "wd14_swinv2": "WD14（SwinV2）",
+            "blip_legacy": "BLIP（传统版）",
+            "blip2": "BLIP-2",
+            "florence2": "Florence-2"
+        },
+        "trigger": {
+            "label": "触发词（可选）",
+            "placeholder": "例如：角色名称",
+            "desc": "添加到每个标注的开头"
+        },
+        "advanced": {
+            "title": "高级设置",
+            "tagger_params": "标签参数",
+            "tag_threshold": "标签置信度阈值",
+            "max_tags": "最大标签数",
+            "remove_junk": "移除常见垃圾标签",
+            "custom_blacklist": "自定义黑名单标签",
+            "custom_blacklist_placeholder": "逗号或换行分隔",
+            "custom_whitelist": "自定义白名单标签（可选）",
+            "normalize_tags": "规范化标签",
+            "tag_ordering": "标签排序",
+            "order_confidence": "按置信度",
+            "order_alphabetical": "字母顺序",
+            "order_model": "保持模型顺序",
+            "captioner_params": "描述参数",
+            "caption_style": "描述风格",
+            "style_short": "简短",
+            "style_medium": "中等",
+            "style_detailed": "详细",
+            "output_format": "输出格式",
+            "format_tags": "逗号标签",
+            "format_sentence": "句子",
+            "avoid_generic": "避免通用短语",
+            "hybrid_params": "混合参数",
+            "merge_format": "合并格式",
+            "merge_ttc": "触发词、标签、描述",
+            "merge_tct": "触发词、描述、标签",
+            "merge_tags_only": "仅标签",
+            "deduplicate": "去除重复词",
+            "max_length": "最大标注长度",
+            "shared_params": "共享参数",
+            "keep_tokens": "保留前N个词元",
+            "keep_tokens_desc": "保护触发词/前缀不被重新排序",
+            "shuffle_tags": "随机打乱标签"
+        },
+        "preview": {
+            "button": "预览3张图片",
+            "modal_title": "标注预览",
+            "modal_desc": "随机选择的3张图片预览",
+            "apply": "应用到所有图片"
+        },
+        "status": {
+            "start_captioning": "开始标注",
+            "running": "运行中...",
+            "previewing": "生成预览中..."
+        }
+    },
     "update": {
         "available": "有可用更新",
         "version_ready": "{{version}} 已就绪",

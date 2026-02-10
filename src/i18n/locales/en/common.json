@@ -159,6 +159,77 @@
         "active": "Active",
         "continue": "Continue"
     },
+    "caption_v2": {
+        "mode": {
+            "label": "Captioning Mode",
+            "tags": "Tags only (Fast)",
+            "caption": "Caption only (Natural)",
+            "hybrid": "Hybrid 2-pass (Pro)"
+        },
+        "model": {
+            "tagger_label": "Tagger Model",
+            "captioner_label": "Captioner Model",
+            "wd14_legacy": "WD14 (Legacy)",
+            "wd14_convnext": "WD14 (ConvNeXt)",
+            "wd14_swinv2": "WD14 (SwinV2)",
+            "blip_legacy": "BLIP (Legacy)",
+            "blip2": "BLIP-2",
+            "florence2": "Florence-2"
+        },
+        "trigger": {
+            "label": "Trigger Word (Optional)",
+            "placeholder": "e.g. character name",
+            "desc": "Prepended to every caption"
+        },
+        "advanced": {
+            "title": "Advanced Settings",
+            "tagger_params": "Tagger Parameters",
+            "tag_threshold": "Tag Confidence Threshold",
+            "tag_threshold_desc": "Lower = more detailed tags. Higher = only generic tags. Try 0.25-0.30 for best variety.",
+            "max_tags": "Max Tags",
+            "max_tags_desc": "Maximum number of tags per image. More tags = better diversity.",
+            "remove_junk": "Remove Common Junk Tags",
+            "custom_blacklist": "Custom Blacklist Tags",
+            "custom_blacklist_placeholder": "Comma or newline separated",
+            "custom_whitelist": "Custom Whitelist Tags (Optional)",
+            "normalize_tags": "Normalize Tags",
+            "tag_ordering": "Tag Ordering",
+            "order_confidence": "By Confidence",
+            "order_alphabetical": "Alphabetical",
+            "order_model": "Keep Model Order",
+            "captioner_params": "Captioner Parameters",
+            "caption_style": "Caption Style",
+            "style_short": "Short",
+            "style_medium": "Medium",
+            "style_detailed": "Detailed",
+            "output_format": "Output Format",
+            "format_tags": "Comma Tags",
+            "format_sentence": "Sentence",
+            "avoid_generic": "Avoid Generic Phrases",
+            "hybrid_params": "Hybrid Parameters",
+            "merge_format": "Merge Format",
+            "merge_ttc": "trigger, tags, caption",
+            "merge_tct": "trigger, caption, tags",
+            "merge_tags_only": "tags only",
+            "deduplicate": "Deduplicate Words",
+            "max_length": "Max Caption Length",
+            "shared_params": "Shared Parameters",
+            "keep_tokens": "Keep First N Tokens",
+            "keep_tokens_desc": "Preserve trigger/prefix from reordering",
+            "shuffle_tags": "Shuffle Tags"
+        },
+        "preview": {
+            "button": "Preview 3 Images",
+            "modal_title": "Caption Preview",
+            "modal_desc": "Preview of 3 randomly selected images",
+            "apply": "Apply to All Images"
+        },
+        "status": {
+            "start_captioning": "Start Captioning",
+            "running": "Running...",
+            "previewing": "Generating preview..."
+        }
+    },
     "update": {
         "available": "Update available",
         "version_ready": "{{version}} ready",

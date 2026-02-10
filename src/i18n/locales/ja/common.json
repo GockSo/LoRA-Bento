@@ -151,6 +151,75 @@
         "active": "アクティブ",
         "continue": "続ける"
     },
+    "caption_v2": {
+        "mode": {
+            "label": "キャプションモード",
+            "tags": "タグのみ（高速）",
+            "caption": "キャプションのみ（自然言語）",
+            "hybrid": "ハイブリッド2パス（プロ）"
+        },
+        "model": {
+            "tagger_label": "タガーモデル",
+            "captioner_label": "キャプションモデル",
+            "wd14_legacy": "WD14（レガシー）",
+            "wd14_convnext": "WD14（ConvNeXt）",
+            "wd14_swinv2": "WD14（SwinV2）",
+            "blip_legacy": "BLIP（レガシー）",
+            "blip2": "BLIP-2",
+            "florence2": "Florence-2"
+        },
+        "trigger": {
+            "label": "トリガーワード（オプション）",
+            "placeholder": "例: キャラクター名",
+            "desc": "すべてのキャプションの先頭に追加"
+        },
+        "advanced": {
+            "title": "詳細設定",
+            "tagger_params": "タガーパラメータ",
+            "tag_threshold": "タグ信頼度しきい値",
+            "max_tags": "最大タグ数",
+            "remove_junk": "一般的なジャンクタグを削除",
+            "custom_blacklist": "カスタムブラックリストタグ",
+            "custom_blacklist_placeholder": "カンマまたは改行で区切る",
+            "custom_whitelist": "カスタムホワイトリストタグ（オプション）",
+            "normalize_tags": "タグを正規化",
+            "tag_ordering": "タグ順序",
+            "order_confidence": "信頼度順",
+            "order_alphabetical": "アルファベット順",
+            "order_model": "モデル順を維持",
+            "captioner_params": "キャプションパラメータ",
+            "caption_style": "キャプションスタイル",
+            "style_short": "短い",
+            "style_medium": "普通",
+            "style_detailed": "詳細",
+            "output_format": "出力形式",
+            "format_tags": "カンマ区切りタグ",
+            "format_sentence": "文章",
+            "avoid_generic": "一般的なフレーズを避ける",
+            "hybrid_params": "ハイブリッドパラメータ",
+            "merge_format": "マージ形式",
+            "merge_ttc": "トリガー、タグ、キャプション",
+            "merge_tct": "トリガー、キャプション、タグ",
+            "merge_tags_only": "タグのみ",
+            "deduplicate": "重複する単語を削除",
+            "max_length": "最大キャプション長",
+            "shared_params": "共有パラメータ",
+            "keep_tokens": "最初のNトークンを保持",
+            "keep_tokens_desc": "トリガー/プレフィックスを並び替えから保護",
+            "shuffle_tags": "タグをシャッフル"
+        },
+        "preview": {
+            "button": "3枚プレビュー",
+            "modal_title": "キャプションプレビュー",
+            "modal_desc": "ランダムに選択された3枚の画像のプレビュー",
+            "apply": "すべての画像に適用"
+        },
+        "status": {
+            "start_captioning": "キャプション開始",
+            "running": "実行中...",
+            "previewing": "プレビュー生成中..."
+        }
+    },
     "update": {
         "available": "アップデート可能",
         "version_ready": "{{version}} 準備完了",
