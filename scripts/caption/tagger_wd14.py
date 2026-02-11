@@ -154,7 +154,8 @@ def predict_tags(
 
 def main():
     parser = argparse.ArgumentParser(description='WD14 Tagger for anime/illustration images')
-    parser.add_argument('--input_dir', type=str, required=True, help='Directory containing images')
+    parser.add_argument('--input_dir', type=str, help='Directory containing images')
+    parser.add_argument('--file', type=str, help='Single image file to tag')
     parser.add_argument('--model', type=str, default='convnext', 
                        choices=['legacy', 'convnext', 'swinv2'],
                        help='Model variant to use')
@@ -182,6 +183,10 @@ def main():
     
     # Configure stdout for unbuffered output
     sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+
+    if not args.input_dir and not args.file:
+        print("Error: Either --input_dir or --file must be specified", file=sys.stderr)
+        sys.exit(1)
     
     # Parse blacklist/whitelist
     blacklist = set(DEFAULT_BLACKLIST)
@@ -197,12 +202,19 @@ def main():
     session, input_name, all_tags = load_model(args.model)
     print(f"Model loaded successfully", flush=True)
     
-    # Find images
-    input_dir = Path(args.input_dir)
     image_files = []
-    for ext in ['*.jpg', '*.jpeg', '*.png', '*.webp']:
-        image_files.extend(input_dir.glob(ext))
-        image_files.extend(input_dir.glob(ext.upper()))
+    if args.file:
+        file_path = Path(args.file)
+        if not file_path.exists():
+            print(f"Error: File not found: {args.file}", file=sys.stderr)
+            sys.exit(1)
+        image_files = [file_path]
+    else:
+        # Find images in directory
+        input_dir = Path(args.input_dir)
+        for ext in ['*.jpg', '*.jpeg', '*.png', '*.webp']:
+            image_files.extend(input_dir.glob(ext))
+            image_files.extend(input_dir.glob(ext.upper()))
     
     total = len(image_files)
     print(f"Found {total} images to tag", flush=True)

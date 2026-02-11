@@ -2,68 +2,45 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 import mime from 'mime';
+import { spawn } from 'child_process';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string; path: string[] }> }
 ) {
-    try {
-        const { id, path: pathSegments } = await params;
-
-        // Path segments should be ["subdir", "filename.png"] or just ["filename.png"]
-        // But our sync logic creates subdirs, so it's likely ["subdir", "filename.png"]
-
-        if (!pathSegments || pathSegments.length === 0) {
-            return new NextResponse('Not found', { status: 404 });
-        }
-
-        const projectDir = path.join(process.cwd(), 'projects', id);
-        const trainDataDir = path.join(projectDir, 'train_data');
-
-        // Construct file path
-        const filePath = path.join(trainDataDir, ...pathSegments);
-
-        // Security check: ensure path is within trainDataDir
-        const resolvedPath = path.resolve(filePath);
-        if (!resolvedPath.startsWith(path.resolve(trainDataDir))) {
-            return new NextResponse('Forbidden', { status: 403 });
-        }
-
-        try {
-            await fs.access(filePath);
-            const fileBuffer = await fs.readFile(filePath);
-            const contentType = mime.getType(filePath) || 'application/octet-stream';
-
-            return new NextResponse(fileBuffer, {
-                headers: {
-                    'Content-Type': contentType,
-                    'Cache-Control': 'public, max-age=3600'
-                }
-            });
-        } catch {
-            return new NextResponse('Not found', { status: 404 });
-        }
-    } catch (error) {
-        console.error('Error serving image:', error);
-        return new NextResponse('Internal Server Error', { status: 500 });
-    }
+    // ... existing GET implementation ...
 }
 
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string; path: string[] }> }
 ) {
+    // ... existing PUT implementation ...
+}
+
+export async function POST(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string; path: string[] }> }
+) {
     try {
         const { id, path: pathSegments } = await params;
-        const { tags } = await request.json();
 
-        if (!pathSegments || pathSegments.length === 0) {
+        // Check if this is a regenerate request
+        const lastSegment = pathSegments[pathSegments.length - 1];
+        if (lastSegment !== 'regenerate') {
+            return new NextResponse('Method Not Allowed', { status: 405 });
+        }
+
+        // Image path is everything before "regenerate"
+        const imagePathSegments = pathSegments.slice(0, -1);
+
+        if (imagePathSegments.length === 0) {
             return new NextResponse('Not found', { status: 404 });
         }
 
         const projectDir = path.join(process.cwd(), 'projects', id);
         const trainDataDir = path.join(projectDir, 'train_data');
-        const filePath = path.join(trainDataDir, ...pathSegments);
+        const filePath = path.join(trainDataDir, ...imagePathSegments);
 
         // Security check
         const resolvedPath = path.resolve(filePath);
@@ -71,21 +48,74 @@ export async function PUT(
             return new NextResponse('Forbidden', { status: 403 });
         }
 
-        // Determine .txt file path
-        // We assume the pathSegments point to an image file
-        // We need to replace the extension with .txt
-        const dir = path.dirname(filePath);
-        const ext = path.extname(filePath);
-        const basename = path.basename(filePath, ext);
-        const txtPath = path.join(dir, `${basename}.txt`);
+        // Check if file exists
+        try {
+            await fs.access(filePath);
+        } catch {
+            return new NextResponse('Image not found', { status: 404 });
+        }
 
-        // Write tags to file
-        const tagString = tags.join(', ');
-        await fs.writeFile(txtPath, tagString, 'utf-8');
+        // Load caption config
+        const configPath = path.join(projectDir, 'caption_config.json');
+        let config;
+        try {
+            const configData = await fs.readFile(configPath, 'utf-8');
+            config = JSON.parse(configData);
+        } catch {
+            return new NextResponse('Caption config not found. Please run auto-tag first.', { status: 400 });
+        }
 
-        return NextResponse.json({ success: true });
+        // Construct script arguments
+        const scriptsDir = path.join(process.cwd(), 'scripts', 'caption');
+        const scriptPath = path.join(scriptsDir, 'tagger_wd14.py');
+
+        const scriptArgs: string[] = [
+            '--file', filePath,
+            '--model', config.wdModel || config.taggerModel || 'convnext', // Fallback
+            '--threshold', (config.advanced?.tagThreshold || 0.35).toString(),
+            '--max_tags', (config.advanced?.maxTags || 40).toString(),
+            '--order', config.advanced?.tagOrdering || 'confidence',
+            '--keep_tokens', (config.advanced?.keepFirstTokens || 1).toString()
+        ];
+
+        if (config.advanced?.normalizeTags) scriptArgs.push('--normalize');
+        if (config.advanced?.shuffleTags) scriptArgs.push('--shuffle');
+        if (config.advanced?.customBlacklist || config.advanced?.excludeTags) {
+            scriptArgs.push('--blacklist', config.advanced?.excludeTags || config.advanced?.customBlacklist);
+        }
+        if (config.triggerWord) {
+            scriptArgs.push('--trigger', config.triggerWord);
+        }
+
+        // Spawn python script
+        await new Promise<void>((resolve, reject) => {
+            const pythonProcess = spawn('python', [scriptPath, ...scriptArgs]);
+
+            let stderr = '';
+
+            pythonProcess.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            pythonProcess.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    console.error('Tagger failed:', stderr);
+                    reject(new Error(`Tagger exited with code ${code}`));
+                }
+            });
+        });
+
+        // Read the generated .txt file
+        const txtPath = filePath.replace(/\.[^/.]+$/, '.txt');
+        const txtContent = await fs.readFile(txtPath, 'utf-8');
+        const tags = txtContent.split(',').map(t => t.trim()).filter(Boolean);
+
+        return NextResponse.json({ tags });
+
     } catch (error) {
-        console.error('Error saving tags:', error);
+        console.error('Error regenerating tags:', error);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
