@@ -7,21 +7,27 @@ Emits JSON progress events to stdout for consumption by Node.js backend.
 import sys
 import json
 import os
+import time
 from pathlib import Path
 
 try:
-    from huggingface_hub import hf_hub_download, HfApi
+    import requests
+    from huggingface_hub import HfApi, hf_hub_url
 except ImportError:
-    # If huggingface_hub is not installed, emit error and exit
+    # If libraries are not installed, emit error and exit
     print(json.dumps({
-        "error": "huggingface_hub library not installed. Install with: pip install huggingface_hub"
+        "error": "Required libraries not installed. Install with: pip install huggingface_hub requests"
     }), flush=True)
     sys.exit(1)
 
 
 def report_progress(data):
     """Emit progress JSON to stdout"""
-    print(json.dumps(data), flush=True)
+    try:
+        print(json.dumps(data), flush=True)
+    except BrokenPipeError:
+        # Parent process closed the pipe, exit silently
+        sys.exit(0)
 
 
 def get_repo_files_info(repo_id):
@@ -30,25 +36,74 @@ def get_repo_files_info(repo_id):
         api = HfApi()
         repo_info = api.repo_info(repo_id=repo_id, repo_type="model")
         
-        files_info = []
+        files_to_download = []
         total_size = 0
         
         for sibling in repo_info.siblings:
             # Only include actual model files we need
             # Skip .gitattributes, README, etc.
             if sibling.rfilename in ['model.onnx', 'selected_tags.csv', 'config.json']:
-                files_info.append({
+                files_to_download.append({
                     'filename': sibling.rfilename,
                     'size': sibling.size or 0
                 })
                 total_size += sibling.size or 0
         
-        return files_info, total_size
+        return files_to_download, total_size
     except Exception as e:
         report_progress({
             "error": f"Failed to fetch repo info: {str(e)}"
         })
         sys.exit(1)
+
+
+def download_file(url, dest_path, filename, file_size, current_downloaded_bytes, total_downloaded_bytes, total_bytes):
+    """Download a single file with streaming and progress updates"""
+    try:
+        # Create directory if it doesn't exist
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        response = requests.get(url, stream=True, allow_redirects=True)
+        response.raise_for_status()
+        
+        # If file size was unknown (0), try to get it from headers
+        if file_size == 0:
+            content_length = response.headers.get('content-length')
+            if content_length:
+                file_size = int(content_length)
+                # Adjust total size if we now know more
+                total_bytes += file_size
+        
+        file_downloaded = 0
+        chunk_size = 1024 * 1024  # 1MB chunks for smoother UI updates
+        
+        with open(dest_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    f.write(chunk)
+                    file_downloaded += len(chunk)
+                    
+                    # Update global progress
+                    current_total_downloaded = total_downloaded_bytes + file_downloaded
+                    
+                    # Calculate percentage
+                    progress = 0
+                    if total_bytes > 0:
+                        progress = round((current_total_downloaded / total_bytes * 100), 2)
+                    
+                    report_progress({
+                        "stage": "downloading",
+                        "status": "downloading",
+                        "current_file": filename,
+                        "downloaded_bytes": current_total_downloaded,
+                        "total_bytes": total_bytes,
+                        "progress": progress
+                    })
+        
+        return file_downloaded
+        
+    except Exception as e:
+        raise Exception(f"Failed to download {filename}: {str(e)}")
 
 
 def download_model(repo_id, local_dir):
@@ -64,7 +119,7 @@ def download_model(repo_id, local_dir):
         "progress": 0
     })
     
-    files_info, total_bytes = get_repo_files_info(repo_id)
+    files_info, total_repo_bytes = get_repo_files_info(repo_id)
     
     if not files_info:
         report_progress({
@@ -72,55 +127,42 @@ def download_model(repo_id, local_dir):
         })
         sys.exit(1)
     
+    # Report initial size
     report_progress({
         "stage": "ready",
         "status": "downloading",
         "current_file": "Starting download...",
         "downloaded_bytes": 0,
-        "total_bytes": total_bytes,
+        "total_bytes": total_repo_bytes,
         "progress": 0
     })
     
     # Step 2: Download files one by one
-    downloaded_bytes = 0
+    total_downloaded = 0
     
     for file_info in files_info:
         filename = file_info['filename']
         file_size = file_info['size']
+        dest_path = Path(local_dir) / filename
         
-        report_progress({
-            "stage": "downloading",
-            "status": "downloading",
-            "current_file": filename,
-            "downloaded_bytes": downloaded_bytes,
-            "total_bytes": total_bytes,
-            "progress": round((downloaded_bytes / total_bytes * 100), 2) if total_bytes > 0 else 0
-        })
+        # Get download URL
+        url = hf_hub_url(repo_id=repo_id, filename=filename)
         
         try:
-            # Download the file
-            downloaded_path = hf_hub_download(
-                repo_id=repo_id,
-                filename=filename,
-                local_dir=local_dir,
-                local_dir_use_symlinks=False
+            downloaded = download_file(
+                url, 
+                dest_path, 
+                filename, 
+                file_size,
+                0, 
+                total_downloaded, 
+                total_repo_bytes
             )
-            
-            # Update progress after successful download
-            downloaded_bytes += file_size
-            
-            report_progress({
-                "stage": "downloading",
-                "status": "downloading",
-                "current_file": filename,
-                "downloaded_bytes": downloaded_bytes,
-                "total_bytes": total_bytes,
-                "progress": round((downloaded_bytes / total_bytes * 100), 2) if total_bytes > 0 else 0
-            })
+            total_downloaded += downloaded
             
         except Exception as e:
             report_progress({
-                "error": f"Failed to download {filename}: {str(e)}"
+                "error": str(e)
             })
             sys.exit(1)
     
@@ -129,8 +171,8 @@ def download_model(repo_id, local_dir):
         "stage": "completed",
         "status": "completed",
         "current_file": "Download complete",
-        "downloaded_bytes": total_bytes,
-        "total_bytes": total_bytes,
+        "downloaded_bytes": total_downloaded,
+        "total_bytes": total_repo_bytes,
         "progress": 100
     })
 
@@ -142,10 +184,10 @@ if __name__ == "__main__":
         }), flush=True)
         sys.exit(1)
     
-    repo_id = sys.argv[1]
-    local_dir = sys.argv[2]
+    repo_id_arg = sys.argv[1]
+    local_dir_arg = sys.argv[2]
     
     # Create local directory if it doesn't exist
-    Path(local_dir).mkdir(parents=True, exist_ok=True)
+    Path(local_dir_arg).mkdir(parents=True, exist_ok=True)
     
-    download_model(repo_id, local_dir)
+    download_model(repo_id_arg, local_dir_arg)
