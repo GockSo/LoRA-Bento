@@ -70,16 +70,14 @@ async function downloadModel(job_id: string, repo_id: string) {
         });
         console.log(`[WD Models] [${job_id}] Status updated to 'downloading'`);
 
-        // Use huggingface-cli to download (if available)
-        // Otherwise, use git clone or manual download
-        const useHfCli = await checkHfCli();
-        console.log(`[WD Models] [${job_id}] huggingface-cli available: ${useHfCli}`);
+        // Use Python script for downloading with real progress
+        const scriptPath = path.join(process.cwd(), 'scripts', 'download_hf_model.py');
 
-        if (useHfCli) {
-            console.log(`[WD Models] [${job_id}] Using huggingface-cli download`);
-            await downloadWithHfCli(job_id, repo_id, modelPath);
-        } else {
-            console.log(`[WD Models] [${job_id}] Falling back to git clone`);
+        try {
+            await downloadWithPythonScript(job_id, repo_id, modelPath, scriptPath);
+        } catch (error: any) {
+            // If Python script fails, try fallback to git clone
+            console.warn(`[WD Models] [${job_id}] Python download failed, falling back to git clone:`, error.message);
             await downloadWithGit(job_id, repo_id, modelPath);
         }
 
@@ -101,54 +99,84 @@ async function downloadModel(job_id: string, repo_id: string) {
     }
 }
 
-async function checkHfCli(): Promise<boolean> {
-    try {
-        await new Promise<void>((resolve, reject) => {
-            const proc = spawn('huggingface-cli', ['--version']);
-            proc.on('close', (code) => {
-                if (code === 0) resolve();
-                else reject();
-            });
-        });
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-async function downloadWithHfCli(job_id: string, repo_id: string, modelPath: string) {
+async function downloadWithPythonScript(
+    job_id: string,
+    repo_id: string,
+    modelPath: string,
+    scriptPath: string
+): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-        const proc = spawn('huggingface-cli', [
-            'download',
-            repo_id,
-            '--local-dir', modelPath,
-            '--local-dir-use-symlinks', 'False'
-        ]);
+        console.log(`[WD Models] [${job_id}] Using Python script: ${scriptPath}`);
+
+        // Try to use python3 first, then python
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
+        const proc = spawn(pythonCmd, [scriptPath, repo_id, modelPath]);
 
         let stdout = '';
         let stderr = '';
 
         proc.stdout.on('data', (data) => {
-            stdout += data.toString();
-            // Try to parse progress from output
-            const progressMatch = stdout.match(/(\d+)%/);
-            if (progressMatch) {
-                const progress = parseInt(progressMatch[1]);
-                installJobs.set(job_id, {
-                    ...installJobs.get(job_id),
-                    progress,
-                    current_file: 'Downloading model files...'
-                });
+            const lines = data.toString().split('\n');
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+
+                try {
+                    const progressData = JSON.parse(line);
+
+                    // Check for error
+                    if (progressData.error) {
+                        console.error(`[WD Models] [${job_id}] Python error:`, progressData.error);
+                        reject(new Error(progressData.error));
+                        return;
+                    }
+
+                    // Update job with real progress
+                    const currentJob = installJobs.get(job_id);
+                    if (currentJob) {
+                        installJobs.set(job_id, {
+                            ...currentJob,
+                            status: progressData.status || 'downloading',
+                            progress: progressData.progress || 0,
+                            downloaded_bytes: progressData.downloaded_bytes || 0,
+                            total_bytes: progressData.total_bytes || 0,
+                            current_file: progressData.current_file || ''
+                        });
+
+                        console.log(`[WD Models] [${job_id}] Progress:`, {
+                            progress: progressData.progress,
+                            downloaded_mb: ((progressData.downloaded_bytes || 0) / 1024 / 1024).toFixed(1),
+                            total_mb: ((progressData.total_bytes || 0) / 1024 / 1024).toFixed(1),
+                            file: progressData.current_file
+                        });
+                    }
+                } catch (e) {
+                    // Not JSON, might be regular output
+                    stdout += line + '\n';
+                }
             }
         });
 
         proc.stderr.on('data', (data) => {
             stderr += data.toString();
+            console.error(`[WD Models] [${job_id}] Python stderr:`, data.toString());
         });
 
         proc.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`huggingface-cli failed: ${stderr}`));
+            if (code === 0) {
+                console.log(`[WD Models] [${job_id}] Python download successful`);
+                resolve();
+            } else {
+                const errorMsg = stderr || stdout || 'Python script failed';
+                console.error(`[WD Models] [${job_id}] Python script exited with code ${code}:`, errorMsg);
+                reject(new Error(errorMsg));
+            }
+        });
+
+        proc.on('error', (err) => {
+            console.error(`[WD Models] [${job_id}] Failed to spawn Python:`, err);
+            reject(new Error(`Failed to run Python: ${err.message}`));
         });
     });
 }
@@ -157,10 +185,13 @@ async function downloadWithGit(job_id: string, repo_id: string, modelPath: strin
     return new Promise<void>((resolve, reject) => {
         const repoUrl = `https://huggingface.co/${repo_id}`;
 
+        // For git clone fallback, show indeterminate progress
         installJobs.set(job_id, {
             ...installJobs.get(job_id),
             current_file: 'Cloning repository...',
-            progress: 50
+            progress: 0,
+            downloaded_bytes: 0,
+            total_bytes: 0  // 0 indicates indeterminate progress
         });
 
         const proc = spawn('git', [
@@ -173,6 +204,8 @@ async function downloadWithGit(job_id: string, repo_id: string, modelPath: strin
 
         proc.stderr.on('data', (data) => {
             stderr += data.toString();
+            // Git clone shows progress on stderr, but we can't parse bytes reliably
+            // Keep progress at 0 to trigger indeterminate UI
         });
 
         proc.on('close', (code) => {

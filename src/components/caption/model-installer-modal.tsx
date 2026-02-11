@@ -118,12 +118,33 @@ export function ModelInstallerModal({ isOpen = false, onClose, jobId, repoId }: 
                                         {progress?.status === 'completed' && t('caption.download.complete')}
                                         {!progress?.status && 'Preparing...'}
                                     </span>
-                                    <span className="font-medium">{Math.round(progressPercent)}%</span>
+                                    {/* Only show percentage if we have real total_bytes */}
+                                    {progress?.total_bytes && progress.total_bytes > 0 ? (
+                                        <span className="font-medium">{Math.round(progressPercent)}%</span>
+                                    ) : null}
                                 </div>
-                                <Progress value={progressPercent} className="h-2" />
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                    {t('caption.download.progress', { downloaded: downloadedMB, total: totalMB })}
-                                </div>
+
+                                {/* Determinate progress bar when total_bytes is known */}
+                                {progress?.total_bytes && progress.total_bytes > 0 ? (
+                                    <>
+                                        <Progress value={progressPercent} className="h-2" />
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                            {t('caption.download.progress', { downloaded: downloadedMB, total: totalMB })}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Indeterminate progress bar */}
+                                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                                            <div className="h-full bg-primary animate-pulse w-full opacity-50" />
+                                        </div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                            {progress?.current_file?.includes('Fetching') || progress?.current_file?.includes('Calculating')
+                                                ? 'Calculating download size...'
+                                                : 'Downloading... (size unknown)'}
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Current File */}
