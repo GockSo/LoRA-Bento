@@ -44,3 +44,4 @@ projects/*
 train_script/*
 
 data/*
+models/*

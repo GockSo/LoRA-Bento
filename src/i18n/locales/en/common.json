@@ -159,6 +159,58 @@
         "active": "Active",
         "continue": "Continue"
     },
+    "caption": {
+        "wd_only_title": "Caption Images (WD Tagger)",
+        "model_selector": {
+            "label": "WD Tagger Model",
+            "installed": "Installed",
+            "not_installed": "Not installed",
+            "download_button": "Download Model",
+            "installing": "Installing..."
+        },
+        "download": {
+            "title": "Installing WD Model",
+            "downloading": "Downloading…",
+            "verifying": "Verifying files…",
+            "complete": "Installation complete!",
+            "progress": "{{downloaded}} MB / {{total}} MB",
+            "current_file": "Downloading {{filename}}...",
+            "error_network": "Network error. Please check your connection and retry.",
+            "error_disk": "Unable to write to models directory. Check disk permissions.",
+            "retry": "Retry",
+            "cancel": "Cancel"
+        },
+        "tag_editor": {
+            "unsaved_changes": "You have unsaved changes",
+            "save_prompt": "Save",
+            "discard_prompt": "Discard",
+            "add_tag_placeholder": "Add tags (comma-separated)",
+            "inline_edit_hint": "Click tag to edit"
+        },
+        "browser": {
+            "view_mode_compact": "Compact",
+            "view_mode_review": "Review",
+            "status_tagged": "Tagged",
+            "status_edited": "Edited",
+            "status_missing": "Missing"
+        },
+        "progress": {
+            "tagging": "Tagging {{current}} / {{total}}",
+            "current_file": "Processing: {{filename}}",
+            "elapsed": "Elapsed: {{time}}"
+        },
+        "settings": {
+            "title": "Settings",
+            "threshold": "Tag Threshold",
+            "threshold_desc": "Lower = more tags, higher = fewer high-confidence tags",
+            "max_tags": "Max Tags",
+            "exclude_tags": "Exclude Tags",
+            "exclude_tags_placeholder": "bad, quality, lowres"
+        },
+        "auto_tag_all": "Auto Tag All",
+        "regenerate": "Regenerate",
+        "revert": "Revert"
+    },
     "caption_v2": {
         "mode": {
             "label": "Captioning Mode",

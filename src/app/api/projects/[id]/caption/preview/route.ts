@@ -43,54 +43,35 @@ export async function POST(
             );
         }
 
-        // Determine which script to run
-        const scriptsDir = path.join(process.cwd(), 'scripts', 'caption');
-        let scriptPath: string;
-        let scriptArgs: string[] = ['--input_dir', previewDir];
 
-        if (config.mode === 'tags') {
-            scriptPath = path.join(scriptsDir, 'tagger_wd14.py');
-            scriptArgs.push(
-                '--model', config.taggerModel,
-                '--threshold', config.advanced.tagThreshold.toString(),
-                '--max_tags', config.advanced.maxTags.toString(),
-                '--order', config.advanced.tagOrdering
-            );
-            if (config.advanced.normalizeTags) scriptArgs.push('--normalize');
-            if (config.advanced.shuffleTags) scriptArgs.push('--shuffle');
-            if (config.advanced.customBlacklist) {
-                scriptArgs.push('--blacklist', config.advanced.customBlacklist);
-            }
-        } else if (config.mode === 'caption') {
-            const modelScriptMap: Record<string, string> = {
-                blip: 'caption_blip_legacy.py',
-                blip2: 'caption_blip2.py',
-                florence2: 'caption_florence2.py'
-            };
-            scriptPath = path.join(scriptsDir, modelScriptMap[config.captionerModel]);
-            scriptArgs.push(
-                '--style', config.advanced.captionStyle,
-                '--format', config.advanced.outputFormat
-            );
-            if (config.advanced.avoidGenericPhrases) scriptArgs.push('--avoid_generic');
-        } else {
-            // Hybrid
-            scriptPath = path.join(scriptsDir, 'hybrid_2pass.py');
-            scriptArgs.push(
-                '--tagger_model', config.taggerModel,
-                '--captioner_model', config.captionerModel,
-                '--tag_threshold', config.advanced.tagThreshold.toString(),
-                '--max_tags', config.advanced.maxTags.toString(),
-                '--tag_order', config.advanced.tagOrdering,
-                '--caption_style', config.advanced.captionStyle,
-                '--merge_format', config.advanced.mergeFormat,
-                '--max_length', config.advanced.maxCaptionLength.toString()
-            );
-            if (config.advanced.normalizeTags) scriptArgs.push('--tag_normalize');
-            if (config.advanced.deduplicate) scriptArgs.push('--dedupe');
-            if (config.advanced.shuffleTags) scriptArgs.push('--shuffle');
-            if (config.advanced.avoidGenericPhrases) scriptArgs.push('--avoid_generic');
+        // WD Tagger only
+        const scriptsDir = path.join(process.cwd(), 'scripts', 'caption');
+        const scriptPath = path.join(scriptsDir, 'tagger_wd14.py');
+
+        // Map new WD model keys to legacy script model names
+        const modelKeyMap: Record<string, string> = {
+            'wd-v1-4-convnext-tagger-v2': 'convnext',
+            'wd-v1-4-moat-tagger-v2': 'swinv2',
+            'wd-eva02-large-tagger-v3': 'convnext',  // fallback
+            'wd-v1-4-vit-tagger-v2': 'legacy'
+        };
+
+        const legacyModel = modelKeyMap[config.wdModel] || 'convnext';
+
+        const scriptArgs: string[] = [
+            '--input_dir', previewDir,
+            '--model', legacyModel,
+            '--threshold', config.advanced.tagThreshold.toString(),
+            '--max_tags', config.advanced.maxTags.toString(),
+            '--order', config.advanced.tagOrdering
+        ];
+
+        if (config.advanced.normalizeTags) scriptArgs.push('--normalize');
+        if (config.advanced.shuffleTags) scriptArgs.push('--shuffle');
+        if (config.advanced.excludeTags) {
+            scriptArgs.push('--blacklist', config.advanced.excludeTags);
         }
+
 
         // Add trigger word if present
         if (config.triggerWord) {

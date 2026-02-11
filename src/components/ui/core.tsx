@@ -125,6 +125,33 @@ const Switch = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HT
 )
 Switch.displayName = "Switch"
 
+const Slider = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { value?: number[]; onValueChange?: (value: number[]) => void; min?: number; max?: number; step?: number }>((
+    { value = [0], onValueChange, min = 0, max = 100, step = 1, className, ...props },
+    ref
+) => {
+    const percentage = ((value[0] - min) / (max - min)) * 100;
+    return (
+        <div ref={ref} className={cn("relative w-full", className)} {...props}>
+            <div className="relative h-2 w-full rounded-full bg-secondary">
+                <div
+                    className="absolute h-full rounded-full bg-primary"
+                    style={{ width: `${percentage}%` }}
+                />
+                <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={value[0]}
+                    onChange={(e) => onValueChange?.([parseFloat(e.target.value)])}
+                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                />
+            </div>
+        </div>
+    );
+});
+Slider.displayName = "Slider"
+
 const Progress = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { value?: number | null }>(
     ({ className, value, ...props }, ref) => (
         <div ref={ref} className={cn("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className)} {...props}>
@@ -137,4 +164,4 @@ const Progress = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
 )
 Progress.displayName = "Progress"
 
-export { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Switch, Progress, buttonVariants }
+export { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Switch, Slider, Progress, buttonVariants }
