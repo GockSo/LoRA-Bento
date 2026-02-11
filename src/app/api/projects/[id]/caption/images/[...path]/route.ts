@@ -73,15 +73,17 @@ export async function POST(
             '--file', filePath,
             '--model', config.wdModel || config.taggerModel || 'convnext', // Fallback
             '--threshold', (config.advanced?.tagThreshold || 0.35).toString(),
-            '--max_tags', (config.advanced?.maxTags || 40).toString(),
-            '--order', config.advanced?.tagOrdering || 'confidence',
+            '--character_threshold', '0.7',
+            '--max_tags', (config.advanced?.maxTags || 50).toString(),
             '--keep_tokens', (config.advanced?.keepFirstTokens || 1).toString()
         ];
 
         if (config.advanced?.normalizeTags) scriptArgs.push('--normalize');
         if (config.advanced?.shuffleTags) scriptArgs.push('--shuffle');
-        if (config.advanced?.customBlacklist || config.advanced?.excludeTags) {
-            scriptArgs.push('--blacklist', config.advanced?.excludeTags || config.advanced?.customBlacklist);
+
+        const exclude = config.advanced?.excludeTags || config.advanced?.customBlacklist;
+        if (exclude) {
+            scriptArgs.push('--exclude_tags', exclude);
         }
         if (config.triggerWord) {
             scriptArgs.push('--trigger', config.triggerWord);
