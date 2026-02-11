@@ -8,14 +8,63 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string; path: string[] }> }
 ) {
-    // ... existing GET implementation ...
+    try {
+        const { id, path: pathSegments } = await params;
+        const projectDir = path.join(process.cwd(), 'projects', id);
+        const trainDataDir = path.join(projectDir, 'train_data');
+        const filePath = path.join(trainDataDir, ...pathSegments);
+
+        // Security check
+        const resolvedPath = path.resolve(filePath);
+        if (!resolvedPath.startsWith(path.resolve(trainDataDir))) {
+            return new NextResponse('Forbidden', { status: 403 });
+        }
+
+        try {
+            const fileBuffer = await fs.readFile(filePath);
+            const mimeType = mime.getType(filePath) || 'application/octet-stream';
+            return new NextResponse(fileBuffer, {
+                headers: { 'Content-Type': mimeType }
+            });
+        } catch (e) {
+            return new NextResponse('Not Found', { status: 404 });
+        }
+    } catch (error) {
+        console.error('Error serving image:', error);
+        return new NextResponse('Internal Server Error', { status: 500 });
+    }
 }
 
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string; path: string[] }> }
 ) {
-    // ... existing PUT implementation ...
+    try {
+        const { id, path: pathSegments } = await params;
+        const { tags } = await request.json();
+
+        if (!Array.isArray(tags)) {
+            return new NextResponse('Invalid tags format', { status: 400 });
+        }
+
+        const projectDir = path.join(process.cwd(), 'projects', id);
+        const trainDataDir = path.join(projectDir, 'train_data');
+        const imagePath = path.join(trainDataDir, ...pathSegments);
+
+        // Security check
+        const resolvedPath = path.resolve(imagePath);
+        if (!resolvedPath.startsWith(path.resolve(trainDataDir))) {
+            return new NextResponse('Forbidden', { status: 403 });
+        }
+
+        const txtPath = imagePath.replace(/\.[^/.]+$/, '.txt');
+        await fs.writeFile(txtPath, tags.join(', '));
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error saving tags:', error);
+        return new NextResponse('Internal Server Error', { status: 500 });
+    }
 }
 
 export async function POST(
