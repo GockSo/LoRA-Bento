@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState, useRef } from 'react';
 import { Button, Card } from '@/components/ui/core';
-import { Settings, Play, SkipForward } from 'lucide-react';
+import { Settings, Play, SkipForward, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -32,6 +32,10 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
     const [installingRepoId, setInstallingRepoId] = useState('');
     const [isInstalling, setIsInstalling] = useState(false);
 
+    // Sync/Gating state
+    const [resizedCount, setResizedCount] = useState<number | null>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
+
     // Image/tag management
     const [images, setImages] = useState<CaptionImage[]>([]);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -54,13 +58,42 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
 
         loadModels();
         loadConfig();
-        loadImages();
+        checkResizedAndSync();
         checkAutoTagStatus();
 
         return () => {
             if (pollingRef.current) clearInterval(pollingRef.current);
         };
     }, [id]);
+
+    const checkResizedAndSync = async () => {
+        try {
+            // 1. Check resized images
+            const res = await fetch(`/api/projects/${id}/caption/resized`);
+            if (!res.ok) return;
+            const data = await res.json();
+            setResizedCount(data.count);
+
+            if (data.count === 0) return; // Stop if no resized images
+
+            // 2. Always try to sync newly resized images (safe/non-destructive)
+            setIsSyncing(true);
+            try {
+                await fetch(`/api/projects/${id}/caption/sync`, { method: 'POST' });
+                // toast.success('Synced images'); // Optional: skip toast if seamless
+            } catch (e) {
+                console.error('Auto-sync failed', e);
+            } finally {
+                setIsSyncing(false);
+            }
+
+            // 3. Load images (from train_data)
+            loadImages();
+
+        } catch (err) {
+            console.error('Failed to check resized/sync:', err);
+        }
+    };
 
     const loadModels = async () => {
         try {
@@ -96,8 +129,9 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
             if (res.ok) {
                 const data = await res.json();
                 setImages(data.images || []);
-                if (data.images?.length > 0 && !selectedImageId) {
-                    setSelectedImageId(data.images[0].id);
+                // If we have images but none selected, select the first one
+                if (data.images?.length > 0) {
+                    setSelectedImageId(prev => prev || data.images[0].id);
                 }
             }
         } catch (err) {
@@ -136,6 +170,10 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
                     total: data.total || 0,
                     filename: data.current_file || ''
                 });
+
+                // Live update of tags (refresh images)
+                // This ensures "Missing -> Tagged" status updates in real-time
+                loadImages();
 
                 if (data.status === 'completed' || data.status === 'error') {
                     stopPolling();
@@ -283,6 +321,31 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
     const selectedImage = images.find(img => img.id === selectedImageId) || null;
     const selectedModel = models.find(m => m.key === config.wdModel);
     const isModelInstalled = selectedModel?.installed || false;
+
+    // Gating Check
+    if (resizedCount === 0) {
+        return (
+            <div className="container mx-auto p-6 flex flex-col items-center justify-center min-h-[50vh] space-y-6">
+                <div className="text-center space-y-2">
+                    <div className="bg-yellow-100 dark:bg-yellow-900/30 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
+                        <AlertTriangle className="w-8 h-8 text-yellow-600 dark:text-yellow-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold">No Resized Images Found</h2>
+                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                        This step requires images that have been resized and padded.
+                        Please complete Step 4 checks before captioning.
+                    </p>
+                </div>
+                <Button
+                    onClick={() => router.push(`/projects/${id}/step-4-resize`)}
+                    className="flex items-center gap-2"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    Go to Resize & Pad
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto p-6 space-y-6">

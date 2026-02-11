@@ -192,7 +192,11 @@
             "view_mode_review": "Review",
             "status_tagged": "Tagged",
             "status_edited": "Edited",
-            "status_missing": "Missing"
+            "status_missing": "Missing",
+            "no_images": "No images found"
+        },
+        "editor": {
+            "select_image": "Select an image to view and edit tags"
         },
         "progress": {
             "tagging": "Tagging {{current}} / {{total}}",

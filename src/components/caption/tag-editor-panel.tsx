@@ -6,6 +6,7 @@ import { Button, Input } from '@/components/ui/core';
 import { X, Save, RotateCcw, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CaptionImage } from '@/types/wd-models';
+import { stringToColor } from '@/lib/utils';
 
 interface TagEditorPanelProps {
     image: CaptionImage | null;
@@ -22,9 +23,14 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
     const [isRegenerating, setIsRegenerating] = useState(false);
 
     // Update tags when image changes
-    useState(() => {
-        if (image) setTags(image.tags);
-    });
+    // Update tags when image changes
+    useEffect(() => {
+        if (image) {
+            setTags(image.tags || []);
+        } else {
+            setTags([]);
+        }
+    }, [image]);
 
     const hasUnsavedChanges = JSON.stringify(tags) !== JSON.stringify(image?.tags || []);
 
@@ -86,7 +92,7 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
     if (!image) {
         return (
             <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                {t('crop.select_image')}
+                {t('caption.editor.select_image', 'Select an image to view and edit tags')}
             </div>
         );
     }
@@ -114,11 +120,12 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
                         <Badge
                             key={index}
                             variant="secondary"
-                            className="cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                            className="cursor-pointer hover:opacity-80 transition-opacity text-white border-transparent"
+                            style={{ backgroundColor: stringToColor(tag) }}
                         >
                             <span>{displayTag(tag)}</span>
                             <X
-                                className="w-3 h-3 ml-1 cursor-pointer hover:text-red-600"
+                                className="w-3 h-3 ml-1 cursor-pointer hover:text-red-200"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     removeTag(index);

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CaptionImage } from '@/types/wd-models';
-import { cn } from '@/lib/utils';
+import { cn, stringToColor } from '@/lib/utils';
 
 interface ImageBrowserPanelProps {
     images: CaptionImage[];
@@ -97,7 +97,11 @@ export function ImageBrowserPanel({ images, selectedId, onSelect, editedIds }: I
 
             {/* Image List */}
             <div className="flex-1 overflow-y-auto">
-                {viewMode === 'compact' ? (
+                {images.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-4 text-gray-500">
+                        <p>{t('caption.browser.no_images', 'No images found')}</p>
+                    </div>
+                ) : viewMode === 'compact' ? (
                     <div className="grid grid-cols-2 gap-3">
                         {filteredImages.map((img) => (
                             <div
@@ -159,7 +163,8 @@ export function ImageBrowserPanel({ images, selectedId, onSelect, editedIds }: I
                                         {img.tags.slice(0, 12).map((tag, idx) => (
                                             <span
                                                 key={idx}
-                                                className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded"
+                                                className="text-xs px-2 py-0.5 rounded text-white"
+                                                style={{ backgroundColor: stringToColor(tag) }}
                                             >
                                                 {displayTag(tag)}
                                             </span>

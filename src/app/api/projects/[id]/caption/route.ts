@@ -55,49 +55,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         };
 
         const projectDir = path.join(process.cwd(), 'projects', id);
-        const resizedDir = path.join(process.cwd(), 'projects', id, 'resized');
+        const trainDataDir = path.join(projectDir, 'train_data');
         const jobPath = path.join(projectDir, JOB_FILE);
 
-        // Source Discovery logic
-        const manifest = await getManifest(id);
-        const allItems = manifest.items || [];
-        const includedItems = allItems.filter(item => !item.excluded);
+        // Check if train_data exists and has subdirectories
+        try {
+            await fs.access(trainDataDir);
+        } catch {
+            return NextResponse.json({ error: 'Train data directory not found. Please complete Sync step.' }, { status: 400 });
+        }
 
-        const rawCount = includedItems.filter(item => item.stage === 'raw').length;
-        const augCount = includedItems.filter(item => item.stage === 'augmented').length;
-        const totalCount = includedItems.length;
-        const excludedCount = allItems.length - totalCount;
+        const entries = await fs.readdir(trainDataDir, { withFileTypes: true });
+        const subDirs = entries.filter(e => e.isDirectory());
 
-        // Determine input source (prefer resized if not empty)
-        const resizedFiles = await fs.readdir(resizedDir).catch(() => []);
-        const resizedImages = resizedFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+        if (subDirs.length === 0) {
+            return NextResponse.json({ error: 'No image folders found in train_data. Please sync images first.' }, { status: 400 });
+        }
 
-        if (resizedImages.length === 0) {
-            return NextResponse.json({ error: 'No resized images to caption. Please complete Step 4 first.' }, { status: 400 });
+        // Target the first subdirectory (e.g. 10_class)
+        // TODO: Support multiple folders if needed in future
+        const targetSubDir = subDirs[0].name;
+        const targetDir = path.join(trainDataDir, targetSubDir);
+
+        // Verify images exist in target
+        const files = await fs.readdir(targetDir);
+        const images = files.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+
+        if (images.length === 0) {
+            return NextResponse.json({ error: 'No images found in training folder.' }, { status: 400 });
         }
 
         // Save caption config
         const configPath = path.join(projectDir, 'caption_config.json');
         await fs.writeFile(configPath, JSON.stringify({ ...config, lastRun: new Date().toISOString() }, null, 2));
 
-        // Initialize Job with breakdown
+        // Initialize Job
         const initialJob = {
             status: 'starting',
             progress: 0,
-            total: totalCount,
+            total: images.length,
             current: 0,
-            rawCount,
-            augCount,
-            totalCount,
-            excludedCount,
-            sourceStage: 'resized' as const
+            current_file: '',
+            sourceStage: 'train_data' as const
         };
         await fs.writeFile(jobPath, JSON.stringify(initialJob, null, 2));
 
         // Determine which provider script to use
         const scriptsDir = path.join(process.cwd(), 'scripts', 'caption');
         let scriptPath: string;
-        let scriptArgs: string[] = ['--input_dir', resizedDir];
+        // Input dir is now the train_data subdirectory
+        let scriptArgs: string[] = ['--input_dir', targetDir];
 
         if (config.mode === 'tags') {
             // WD14 Tagger
@@ -161,7 +168,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         // Spawn Background Process
         const pythonProcess = spawn('python', [scriptPath, ...scriptArgs]);
 
-        console.log(`Started captioning job for ${id}`);
+        console.log(`Started captioning job for ${id} in ${targetDir}`);
 
         pythonProcess.stdout.on('data', async (data) => {
             const str = data.toString();
@@ -172,7 +179,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         try {
                             const jsonStr = line.replace('PROGRESS:', '').trim();
                             const progressData = JSON.parse(jsonStr);
-                            // Update job file (careful with concurrency, but simple write should be "okay" for this scale)
                             const currentJob = JSON.parse(await fs.readFile(jobPath, 'utf-8').catch(() => '{}'));
                             await fs.writeFile(jobPath, JSON.stringify({ ...currentJob, ...progressData }, null, 2));
                         } catch (e) {
@@ -189,103 +195,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             console.error(`[Caption ${id} ERR] ${data}`);
         });
 
-        const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'it', 'that', 'this']);
-
         pythonProcess.on('close', async (code) => {
             console.log(`Captioning finished for ${id} with code ${code}`);
 
             if (code === 0) {
                 try {
-                    // New provider scripts write .txt files directly to resized/
-                    // We need to copy them to train_data/ along with images
+                    // Update stats only - no file moving
 
-                    const trainDataTmpDir = path.join(projectDir, 'train_data_tmp');
-                    const trainDataDir = path.join(projectDir, 'train_data');
-
-                    // Clean up any existing tmp folder from previous runs
-                    await fs.rm(trainDataTmpDir, { recursive: true, force: true });
-                    await fs.mkdir(trainDataTmpDir, { recursive: true });
-
-                    // Read all .txt files from resized/ directory
-                    const allFiles = await fs.readdir(resizedDir);
+                    const allFiles = await fs.readdir(targetDir);
                     const txtFiles = allFiles.filter(f => f.endsWith('.txt'));
-                    const imageFiles = allFiles.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
 
-                    let writtenImages = 0;
                     let writtenCaptions = 0;
                     const counts: Record<string, number> = {};
                     const allCaptionTexts: string[] = [];
                     const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'it', 'that', 'this']);
 
-                    // Determine mode based on config for proper aggregation
                     const displayMode = config.mode === 'caption' ? 'sentence' : 'tags';
 
-                    // Copy images and captions to train_data_tmp/
-                    for (const img of imageFiles) {
-                        const imgStem = path.parse(img).name;
-                        const txtFile = `${imgStem}.txt`;
-
-                        // Copy image
+                    for (const txtFile of txtFiles) {
                         try {
-                            await fs.copyFile(
-                                path.join(resizedDir, img),
-                                path.join(trainDataTmpDir, img)
-                            );
-                            writtenImages++;
-                        } catch (err) {
-                            console.error(`Failed to copy ${img}:`, err);
-                            continue;
-                        }
+                            const captionText = await fs.readFile(path.join(targetDir, txtFile), 'utf-8');
+                            writtenCaptions++;
 
-                        // Copy caption if exists
-                        if (txtFiles.includes(txtFile)) {
-                            try {
-                                const captionText = await fs.readFile(
-                                    path.join(resizedDir, txtFile),
-                                    'utf-8'
-                                );
-
-                                await fs.writeFile(
-                                    path.join(trainDataTmpDir, txtFile),
-                                    captionText
-                                );
-                                writtenCaptions++;
-
-                                // Aggregate for stats
-                                if (displayMode === 'tags') {
-                                    // Parse tags
-                                    captionText.split(',').forEach(t => {
-                                        const tag = t.trim();
-                                        if (tag) counts[tag] = (counts[tag] || 0) + 1;
-                                    });
-                                } else {
-                                    // Sentence mode - extract keywords
-                                    allCaptionTexts.push(captionText);
-                                    const words = captionText.toLowerCase()
-                                        .replace(/[^\w\s]/g, '')
-                                        .split(/\s+/);
-                                    words.forEach(w => {
-                                        if (w.length > 2 && !STOPWORDS.has(w)) {
-                                            counts[w] = (counts[w] || 0) + 1;
-                                        }
-                                    });
-                                }
-                            } catch (err) {
-                                console.error(`Failed to copy ${txtFile}:`, err);
+                            if (displayMode === 'tags') {
+                                captionText.split(',').forEach(t => {
+                                    const tag = t.trim();
+                                    if (tag) counts[tag] = (counts[tag] || 0) + 1;
+                                });
+                            } else {
+                                allCaptionTexts.push(captionText);
+                                const words = captionText.toLowerCase()
+                                    .replace(/[^\w\s]/g, '')
+                                    .split(/\s+/);
+                                words.forEach(w => {
+                                    if (w.length > 2 && !STOPWORDS.has(w)) {
+                                        counts[w] = (counts[w] || 0) + 1;
+                                    }
+                                });
                             }
+                        } catch (e) {
+                            console.error(`Error reading ${txtFile}:`, e);
                         }
-
-                        // Clean up .txt from resized/ (we've copied to train_data)
-                        try {
-                            await fs.unlink(path.join(resizedDir, txtFile));
-                        } catch { }
                     }
-
-                    // Atomic replacement: delete old train_data/ and rename tmp
-                    await fs.rm(trainDataDir, { recursive: true, force: true });
-                    await fs.rename(trainDataTmpDir, trainDataDir);
-
-                    console.log(`Created train_data/ with ${writtenImages} images and ${writtenCaptions} captions`);
 
                     // Prepare Summary Data
                     const topItems = Object.entries(counts)
@@ -293,7 +244,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         .sort((a, b) => b.count - a.count)
                         .slice(0, 50);
 
-                    // Pick samples for sentence mode
                     const samples: string[] = [];
                     if (displayMode === 'sentence' && allCaptionTexts.length > 0) {
                         for (let i = 0; i < Math.min(5, allCaptionTexts.length); i++) {
@@ -312,25 +262,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                         uniqueCount,
                         samples: samples.length > 0 ? samples : undefined,
                         totalCaptioned: writtenCaptions,
-                        writtenImages,
+                        writtenImages: images.length,
                         writtenCaptions,
                         updatedAt: new Date().toISOString()
                     };
 
-                    // Persist for Analysis/Export screen
                     const statsPath = path.join(projectDir, 'caption_stats.json');
                     await fs.writeFile(statsPath, JSON.stringify(finalSummary, null, 2));
 
-                    // Final Job Update
                     await fs.writeFile(jobPath, JSON.stringify({
                         status: 'completed',
                         progress: writtenCaptions,
-                        total: totalCount,
-                        rawCount,
-                        augCount,
-                        totalCount,
-                        excludedCount,
-                        sourceStage: 'resized',
+                        total: images.length,
+                        sourceStage: 'train_data',
                         summary: finalSummary
                     }, null, 2));
 
