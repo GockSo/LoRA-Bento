@@ -218,6 +218,15 @@
             "keep_tokens_desc": "Preserve trigger/prefix from reordering",
             "shuffle_tags": "Shuffle Tags"
         },
+        "skip": {
+            "button": "Skip Captioning",
+            "modal_title": "Skip captioning?",
+            "modal_desc": "We'll prepare your training folder using resized images only. No caption (.txt) files will be created. This is best if your dataset is already consistent or you don't need tags.",
+            "warning_existing": "This will replace existing train_data output.",
+            "success": "Prepared train_data from resized images ({{count}} images).",
+            "confirm": "Confirm Skip",
+            "error": "Failed to skip captioning"
+        },
         "preview": {
             "button": "Preview 3 Images",
             "modal_title": "Caption Preview",

@@ -208,6 +208,15 @@
             "keep_tokens_desc": "保护触发词/前缀不被重新排序",
             "shuffle_tags": "随机打乱标签"
         },
+        "skip": {
+            "button": "跳过标注",
+            "modal_title": "跳过标注？",
+            "modal_desc": "我们将仅使用已调整大小的图片准备您的训练文件夹。不会创建标注（.txt）文件。如果您的数据集已经一致，或者不需要标签，这是最佳选择。",
+            "warning_existing": "这将替换现有的 train_data 输出。",
+            "success": "已从调整大小的图片准备 train_data（{{count}} 张图片）。",
+            "confirm": "确认跳过",
+            "error": "跳过标注失败"
+        },
         "preview": {
             "button": "预览3张图片",
             "modal_title": "标注预览",

@@ -43,6 +43,8 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
     const [showPreview, setShowPreview] = useState(false);
     const [previewSamples, setPreviewSamples] = useState<CaptionPreviewResult[]>([]);
     const [isPreviewing, setIsPreviewing] = useState(false);
+    const [showSkipModal, setShowSkipModal] = useState(false);
+    const [isSkipping, setIsSkipping] = useState(false);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
     // Load project name and config on mount
@@ -176,6 +178,30 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
             }
         } catch {
             setJob(prev => ({ ...prev, status: 'error', error: 'Failed to start' }));
+        }
+    };
+
+    // Skip captioning handler
+    const handleSkipCaptioning = async () => {
+        setIsSkipping(true);
+        try {
+            const res = await fetch(`/api/projects/${id}/caption/skip`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                toast.success(t('caption_v2.skip.success', { count: data.imagesCopied }));
+                setShowSkipModal(false);
+                router.refresh();
+            } else {
+                const err = await res.json();
+                toast.error(err.error || t('caption_v2.skip.error'));
+            }
+        } catch {
+            toast.error(t('caption_v2.skip.error'));
+        } finally {
+            setIsSkipping(false);
         }
     };
 
@@ -432,7 +458,7 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
             <div className="flex gap-3">
                 <Button
                     onClick={runPreview}
-                    disabled={isRunning || isPreviewing}
+                    disabled={isRunning || isPreviewing || isSkipping}
                     variant="outline"
                     className="flex-1"
                 >
@@ -450,8 +476,17 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
                 </Button>
 
                 <Button
+                    onClick={() => setShowSkipModal(true)}
+                    disabled={isRunning || isSkipping}
+                    variant="outline"
+                    className="flex-1"
+                >
+                    {t('caption_v2.skip.button')}
+                </Button>
+
+                <Button
                     onClick={runCaptioning}
-                    disabled={isRunning}
+                    disabled={isRunning || isSkipping}
                     className="flex-1"
                 >
                     {isRunning ? (
@@ -560,6 +595,48 @@ export default function CaptionPage({ params }: { params: Promise<{ id: string }
                                 className="flex-1"
                             >
                                 {t('caption_v2.preview.apply')}
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Skip Captioning Modal */}
+            {showSkipModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <Card className="max-w-md w-full p-6">
+                        <h2 className="text-xl font-bold mb-4">{t('caption_v2.skip.modal_title')}</h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            {t('caption_v2.skip.modal_desc')}
+                        </p>
+                        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4">
+                            <p className="text-sm text-amber-800 dark:text-amber-200">
+                                {t('caption_v2.skip.warning_existing')}
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowSkipModal(false)}
+                                disabled={isSkipping}
+                                className="flex-1"
+                            >
+                                {t('actions.cancel')}
+                            </Button>
+                            <Button
+                                onClick={handleSkipCaptioning}
+                                disabled={isSkipping}
+                                className="flex-1"
+                            >
+                                {isSkipping ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        {t('actions.processing')}
+                                    </>
+                                ) : (
+                                    t('caption_v2.skip.confirm')
+                                )}
                             </Button>
                         </div>
                     </Card>

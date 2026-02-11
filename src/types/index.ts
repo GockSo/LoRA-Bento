@@ -41,6 +41,10 @@ export interface ProjectSettings {
         modelFamily?: string;
         trainerScriptPath?: string;
     };
+    caption?: {
+        mode?: 'skipped';
+        preparedAt?: string;
+    };
 }
 
 export interface ImageFile {
