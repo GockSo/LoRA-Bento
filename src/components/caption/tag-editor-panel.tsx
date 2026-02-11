@@ -1,38 +1,95 @@
 'use client';
 
-import { useState, useEffect, KeyboardEvent } from 'react';
+import { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, Input } from '@/components/ui/core';
-import { X, Save, RotateCcw, Sparkles } from 'lucide-react';
+import { X, RotateCcw, Sparkles, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CaptionImage } from '@/types/wd-models';
 import { stringToColor } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 interface TagEditorPanelProps {
     image: CaptionImage | null;
-    onSave: (tags: string[]) => Promise<void>;
+    onSave: (tags: string[], silent?: boolean) => Promise<boolean>;
     onRegenerate: () => Promise<void>;
     onRevert: () => void;
 }
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEditorPanelProps) {
     const { t } = useTranslation();
-    const [tags, setTags] = useState<string[]>(image?.tags || []);
+    const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
+    const [status, setStatus] = useState<SaveStatus>('idle');
     const [isRegenerating, setIsRegenerating] = useState(false);
 
-    // Update tags when image changes
+    // Refs for debounce and tracking
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSavedTagsRef = useRef<string[]>([]);
+    const isInitialLoadRef = useRef(true);
+
     // Update tags when image changes
     useEffect(() => {
+        // Cancel any pending save from previous image
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+
         if (image) {
-            setTags(image.tags || []);
+            const newTags = image.tags || [];
+            setTags(newTags);
+            lastSavedTagsRef.current = newTags;
+            setStatus('idle');
+            isInitialLoadRef.current = true;
         } else {
             setTags([]);
+            lastSavedTagsRef.current = [];
+            setStatus('idle');
         }
     }, [image]);
 
-    const hasUnsavedChanges = JSON.stringify(tags) !== JSON.stringify(image?.tags || []);
+    // Auto-save logic
+    useEffect(() => {
+        if (isInitialLoadRef.current) {
+            isInitialLoadRef.current = false;
+            return;
+        }
+
+        // Check if tags actually changed from last saved state
+        const tagsJson = JSON.stringify(tags);
+        const lastSavedJson = JSON.stringify(lastSavedTagsRef.current);
+
+        if (tagsJson === lastSavedJson) return;
+
+        setStatus('saving');
+
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        debounceTimerRef.current = setTimeout(async () => {
+            const success = await onSave(tags, true); // silent = true
+            if (success) {
+                lastSavedTagsRef.current = tags;
+                setStatus('saved');
+                // Reset back to idle after 2 seconds
+                setTimeout(() => {
+                    setStatus(prev => prev === 'saved' ? 'idle' : prev);
+                }, 2000);
+            } else {
+                setStatus('error');
+            }
+        }, 600); // 600ms debounce
+
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, [tags, onSave]);
 
     const displayTag = (tag: string) => tag.replace(/_/g, ' ');
 
@@ -44,28 +101,18 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
             .filter(t => !tags.some(existing => existing.toLowerCase() === t.toLowerCase()));
 
         if (newTags.length > 0) {
-            setTags([...tags, ...newTags]);
+            setTags(prev => [...prev, ...newTags]);
             setTagInput('');
         }
     };
 
     const removeTag = (index: number) => {
-        setTags(tags.filter((_, i) => i !== index));
+        setTags(prev => prev.filter((_, i) => i !== index));
     };
 
     const removeLastTag = () => {
         if (tags.length > 0) {
-            setTags(tags.slice(0, -1));
-        }
-    };
-
-    const handleSave = async () => {
-        if (!image) return;
-        setIsSaving(true);
-        try {
-            await onSave(tags);
-        } finally {
-            setIsSaving(false);
+            setTags(prev => prev.slice(0, -1));
         }
     };
 
@@ -108,9 +155,38 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
                 />
             </div>
 
-            {/* Filename */}
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {image.filename}
+            {/* Filename & Status */}
+            <div className="flex items-center justify-between">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-[200px]" title={image.filename}>
+                    {image.filename}
+                </div>
+
+                {/* Status Indicator */}
+                <div className="flex items-center gap-2 text-xs font-medium">
+                    {status === 'saving' && (
+                        <div className="flex items-center gap-1.5 text-blue-500">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Saving...</span>
+                        </div>
+                    )}
+                    {status === 'saved' && (
+                        <div className="flex items-center gap-1.5 text-green-500 animate-in fade-in duration-300">
+                            <Check className="w-3 h-3" />
+                            <span>Saved</span>
+                        </div>
+                    )}
+                    {status === 'error' && (
+                        <div className="flex items-center gap-1.5 text-red-500 cursor-pointer hover:underline"
+                            onClick={() => {
+                                // Retry logic: just trigger immediate save
+                                onSave(tags, false);
+                                setStatus('saving');
+                            }}>
+                            <AlertCircle className="w-3 h-3" />
+                            <span>Error saving (Retry)</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Tag Chips */}
@@ -142,7 +218,7 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={t('caption.tag_editor.add_tag_placeholder')}
+                    placeholder={t('caption.tag_editor.add_tag_placeholder', 'Add tags...')}
                     className="w-full"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -150,20 +226,12 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
                 </p>
             </div>
 
-            {/* Unsaved Changes Indicator */}
-            {hasUnsavedChanges && (
-                <div className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                    <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                    {t('caption.tag_editor.unsaved_changes')}
-                </div>
-            )}
-
             {/* Action Buttons */}
             <div className="flex gap-2 flex-shrink-0">
                 <Button
                     variant="outline"
                     onClick={onRevert}
-                    disabled={!hasUnsavedChanges || isSaving || isRegenerating}
+                    disabled={status === 'saving' || isRegenerating}
                     className="flex-1"
                 >
                     <RotateCcw className="w-4 h-4 mr-2" />
@@ -172,19 +240,11 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
                 <Button
                     variant="outline"
                     onClick={handleRegenerate}
-                    disabled={isSaving || isRegenerating}
+                    disabled={status === 'saving' || isRegenerating}
                     className="flex-1"
                 >
                     <Sparkles className="w-4 h-4 mr-2" />
                     {isRegenerating ? 'Regenerating...' : t('caption.regenerate')}
-                </Button>
-                <Button
-                    onClick={handleSave}
-                    disabled={!hasUnsavedChanges || isSaving || isRegenerating}
-                    className="flex-1"
-                >
-                    <Save className="w-4 h-4 mr-2" />
-                    {isSaving ? 'Saving...' : t('actions.save')}
                 </Button>
             </div>
         </div>

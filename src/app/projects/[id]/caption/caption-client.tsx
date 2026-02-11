@@ -223,8 +223,8 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
         }
     };
 
-    const handleSaveTags = async (tags: string[]) => {
-        if (!selectedImageId) return;
+    const handleSaveTags = async (tags: string[], silent: boolean = false) => {
+        if (!selectedImageId) return false;
 
         try {
             const res = await fetch(`/api/projects/${id}/caption/images/${selectedImageId}`, {
@@ -234,17 +234,20 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
             });
 
             if (res.ok) {
-                toast.success('Tags saved');
+                if (!silent) toast.success('Tags saved');
                 setEditedIds(prev => new Set([...prev, selectedImageId]));
                 // Update local image data
                 setImages(prev => prev.map(img =>
                     img.id === selectedImageId ? { ...img, tags, is_edited: true } : img
                 ));
+                return true;
             } else {
                 toast.error('Failed to save tags');
+                return false;
             }
         } catch (err) {
             toast.error('Failed to save tags');
+            return false;
         }
     };
 
