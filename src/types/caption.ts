@@ -20,6 +20,7 @@ export interface CaptionAdvancedSettings {
 export interface CaptionConfig {
     wdModel: WDModel;              // Full WD model key
     triggerWord: string;
+    taggingMode?: 'append' | 'override'; // New field
     advanced: CaptionAdvancedSettings;
     lastRun?: string;              // ISO timestamp
 }

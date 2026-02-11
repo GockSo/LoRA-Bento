@@ -256,7 +256,12 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
 
         try {
             const res = await fetch(`/api/projects/${id}/caption/images/${selectedImageId}/regenerate`, {
-                method: 'POST'
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...config,
+                    taggingMode: config.taggingMode || 'append'
+                })
             });
 
             if (res.ok) {
@@ -285,11 +290,23 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
             return;
         }
 
+        // Confirmation for Override
+        if (config.taggingMode === 'override') {
+            const confirmed = window.confirm(
+                '⚠️ Override Warning\n\nThis will REPLACE all existing tags with new ones from the tagger.\nAny manual edits will be lost.\n\nAre you sure you want to continue?'
+            );
+            if (!confirmed) return;
+        }
+
         try {
             const res = await fetch(`/api/projects/${id}/caption`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
+                // Ensure taggingMode is set (default to append if undefined)
+                body: JSON.stringify({
+                    ...config,
+                    taggingMode: config.taggingMode || 'append'
+                })
             });
 
             if (res.ok) {
@@ -366,14 +383,39 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
                 />
 
                 {/* Actions */}
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3 items-center">
+
+                    {/* Mode Selector (Segmented Control style) */}
+                    <div className="flex items-center bg-secondary/50 rounded-md p-1 border border-border">
+                        <button
+                            onClick={() => setConfig({ ...config, taggingMode: 'append' })}
+                            className={`px-3 py-1 text-sm rounded-sm transition-colors ${config.taggingMode !== 'override'
+                                ? 'bg-background shadow-sm text-foreground font-medium'
+                                : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                        >
+                            Append
+                        </button>
+                        <button
+                            onClick={() => setConfig({ ...config, taggingMode: 'override' })}
+                            className={`px-3 py-1 text-sm rounded-sm transition-colors ${config.taggingMode === 'override'
+                                ? 'bg-background shadow-sm text-foreground font-medium'
+                                : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                        >
+                            Override
+                        </button>
+                    </div>
+
                     <Button
                         onClick={handleAutoTagAll}
                         disabled={!isModelInstalled || isAutoTagging}
                         className="flex items-center gap-2"
+                        variant={config.taggingMode === 'override' ? 'destructive' : 'default'}
                     >
                         <Play className="w-4 h-4" />
                         {t('caption.auto_tag_all')}
+                        {config.taggingMode === 'override' ? ' (Override)' : ' (Append)'}
                     </Button>
                     <Button
                         variant="outline"

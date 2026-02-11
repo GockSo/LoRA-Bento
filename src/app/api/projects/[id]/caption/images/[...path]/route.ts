@@ -55,14 +55,25 @@ export async function POST(
             return new NextResponse('Image not found', { status: 404 });
         }
 
-        // Load caption config
-        const configPath = path.join(projectDir, 'caption_config.json');
+        // Load caption config (prefer body, fallback to file)
         let config;
         try {
-            const configData = await fs.readFile(configPath, 'utf-8');
-            config = JSON.parse(configData);
+            const body = await request.json();
+            if (body && (body.wdModel || body.taggerModel)) {
+                config = body;
+            }
         } catch {
-            return new NextResponse('Caption config not found. Please run auto-tag first.', { status: 400 });
+            // Body might be empty or invalid JSON, ignore
+        }
+
+        if (!config) {
+            const configPath = path.join(projectDir, 'caption_config.json');
+            try {
+                const configData = await fs.readFile(configPath, 'utf-8');
+                config = JSON.parse(configData);
+            } catch {
+                return new NextResponse('Caption config not found. Please run auto-tag first.', { status: 400 });
+            }
         }
 
         // Construct script arguments
@@ -80,6 +91,10 @@ export async function POST(
 
         if (config.advanced?.normalizeTags) scriptArgs.push('--normalize');
         if (config.advanced?.shuffleTags) scriptArgs.push('--shuffle');
+
+        if (config.taggingMode === 'append') {
+            scriptArgs.push('--append');
+        }
 
         const exclude = config.advanced?.excludeTags || config.advanced?.customBlacklist;
         if (exclude) {

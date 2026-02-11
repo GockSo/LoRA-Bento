@@ -190,44 +190,56 @@ def process_tags(probs, tags, gen_idx, char_idx, rat_idx, threshold, char_thresh
     
     result_tags = []
     
+    stats = {
+        "raw": len(tags),
+        "after_exclude": 0, # To be calculated roughly
+        "after_threshold": 0
+    }
+    
+    # We can't easily count "after_exclude" for all tags without iterating all 4000+ tags.
+    # Instead, we'll just count how many candidate tags passed threshold AND exclude.
+    # The user asking for "after_exclude" and "after_threshold" separately implies a pipeline.
+    # But we do (Threshold AND NotExcluded).
+    # Let's just approximate or do it efficiently.
+    
+    # Actually, let's just count relevant ones.
+    
     # 1. Process General Tags
     for i in gen_idx:
         score = probs[i]
         tag_name = tags[i]
-        if score >= threshold and tag_name not in exclude_set:
+        
+        # Check exclusion
+        if tag_name in exclude_set:
+            continue
+            
+        # Check threshold
+        if score >= threshold:
             result_tags.append((tag_name, score))
 
-    # 2. Process Character Tags (often need lower threshold)
+    # 2. Process Character Tags
     for i in char_idx:
         score = probs[i]
         tag_name = tags[i]
-        if score >= char_threshold and tag_name not in exclude_set:
+        
+        if tag_name in exclude_set:
+            continue
+            
+        if score >= char_threshold:
             result_tags.append((tag_name, score))
             
-    # 3. Ratings (Optional, usually we exclude, but can include if explicitly asked)
-    # For now, we ignore ratings as they aren't useful for training usually (unless 'explicit' etc)
+    stats["after_threshold"] = len(result_tags)
     
     # Sort by confidence
     result_tags.sort(key=lambda x: x[1], reverse=True)
     
-    return [t[0] for t in result_tags]
+    return [t[0] for t in result_tags], stats
 
 def normalize_tag(tag):
     return tag.replace('_', ' ').strip()
 
 def format_tags(tags, args):
     """Format tags based on arguments (normalize, start with trigger, etc)"""
-    
-    # Normalize (underscores to spaces? OR spaces to underscores?)
-    # Valid Danbooru tags usually have underscores.
-    # If user wants "normalize", usually means "replace underscores with spaces" for human readability,
-    # OR "escape brackets" etc.
-    # standard wd14 output is `1girl, green_hair` etc.
-    # If args.normalize is True, we usually just ensure underscores are there for Danbooru compatibility
-    # OR we convert to spaces if that's the preferred style.
-    # Let's assume standard Danbooru (underscores) is the goal for LoRA training `train_data`, 
-    # but the previous code tried to `replace(' ', '_')`.
-    
     processed = []
     for t in tags:
         if args.normalize:
@@ -255,14 +267,14 @@ def main():
     parser.add_argument('--file', type=str)
     parser.add_argument('--model', type=str, default='convnext')
     parser.add_argument('--threshold', type=float, default=0.35)
-    parser.add_argument('--character_threshold', type=float, default=0.7) # Higher default for chars to reduce false positives
-    parser.add_argument('--max_tags', type=int, default=50) # Not strictly used as hard limit usually
-    parser.add_argument('--exclude_tags', type=str, default='') # Comma separated
+    parser.add_argument('--character_threshold', type=float, default=0.7) 
+    parser.add_argument('--max_tags', type=int, default=50) 
+    parser.add_argument('--exclude_tags', type=str, default='') 
     parser.add_argument('--normalize', action='store_true')
     parser.add_argument('--trigger', type=str, default='')
     parser.add_argument('--keep_tokens', type=int, default=1)
     parser.add_argument('--shuffle', action='store_true')
-    # Backward compat args (ignored or mapped)
+    parser.add_argument('--append', action='store_true', help='Append tags to existing files instead of overwriting')
     parser.add_argument('--blacklist', type=str, help='deprecated alias for exclude_tags')
     
     args = parser.parse_args()
@@ -272,7 +284,15 @@ def main():
     user_exclude = args.exclude_tags or args.blacklist
     if user_exclude:
         for t in user_exclude.split(','):
-            exclude_set.add(t.strip().replace(' ', '_')) # store as underscore for matching
+            exclude_set.add(t.strip().replace(' ', '_')) 
+
+    # Log received settings (Debug)
+    debug_settings = {
+        "threshold": args.threshold,
+        "max_tags": args.max_tags,
+        "exclude_tags": list(exclude_set)[:10] + (['...'] if len(exclude_set) > 10 else [])
+    }
+    print(f"DEBUG:received:{json.dumps(debug_settings)}", flush=True)
 
     # Validate Input
     targets = []
@@ -313,20 +333,50 @@ def main():
             # Infer
             probs = run_inference(session, input_name, img_in)
 
-            # Process outputs
-            final_tags = process_tags(
+            # Process outputs (Threshold & Filter)
+            final_tags, stats = process_tags(
                 probs, tags, gen_idx, char_idx, rat_idx, 
                 args.threshold, args.character_threshold or args.threshold, 
                 exclude_set
             )
             
-            # Format
+            # Apply Max Tags (Limit)
+            if args.max_tags > 0 and len(final_tags) > args.max_tags:
+                final_tags = final_tags[:args.max_tags]
+            
+            stats['after_max'] = len(final_tags)
+            print(f"DEBUG:counts:{json.dumps(stats)}", flush=True)
+
+            # Format (Trigger, Shuffle, Normalize)
             formatted_tags = format_tags(final_tags, args)
             
             # Write
             txt_path = img_path.with_suffix('.txt')
+            
+            if args.append and txt_path.exists():
+                try:
+                    with open(txt_path, 'r', encoding='utf-8') as f:
+                        existing_content = f.read().strip()
+                except Exception:
+                    existing_content = ""
+                
+                if existing_content:
+                    existing_tags = [t.strip() for t in existing_content.split(',')]
+                    existing_set = set(t.lower() for t in existing_tags)
+                    
+                    # Append new tags that are not in existing
+                    for new_tag in formatted_tags:
+                        if new_tag.lower() not in existing_set:
+                            existing_tags.append(new_tag)
+                    
+                    output_tags = existing_tags
+                else:
+                    output_tags = formatted_tags
+            else:
+                output_tags = formatted_tags
+
             with open(txt_path, 'w', encoding='utf-8') as f:
-                f.write(', '.join(formatted_tags))
+                f.write(', '.join(output_tags))
                 
         except Exception as e:
             print(f"Error processing {img_path}: {e}", file=sys.stderr)
