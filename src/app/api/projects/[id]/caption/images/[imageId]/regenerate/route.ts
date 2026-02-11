@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 import { spawn } from 'child_process';
+import { getModelByKey } from '@/lib/wd-models';
 
 export async function POST(
     request: NextRequest,
@@ -17,7 +18,7 @@ export async function POST(
         const config = JSON.parse(configData);
 
         const captionConfig = config.caption || {
-            wdModel: 'wd-v1-4-convnext-tagger-v2',
+            wdModel: 'SmilingWolf/wd-v1-4-convnext-tagger-v2',
             advanced: {
                 tagThreshold: 0.35,
                 maxTags: 60,
@@ -28,14 +29,10 @@ export async function POST(
             }
         };
 
-        // Map WD model key to legacy script model name
-        const modelKeyMap: Record<string, string> = {
-            'wd-v1-4-convnext-tagger-v2': 'convnext',
-            'wd-v1-4-moat-tagger-v2': 'swinv2',
-            'wd-eva02-large-tagger-v3': 'convnext',
-            'wd-v1-4-vit-tagger-v2': 'legacy'
-        };
-        const legacyModel = modelKeyMap[captionConfig.wdModel] || 'convnext';
+        // Use repo_id directly
+        const modelKey = captionConfig.wdModel || 'wd-v1-4-convnext-tagger-v2';
+        const modelDef = getModelByKey(modelKey as any);
+        const modelRepoId = modelDef?.repo_id || modelKey;
 
         // Get image path
         const imagePath = path.join(projectDir, 'train_data', imageId);
@@ -48,7 +45,7 @@ export async function POST(
         const scriptArgs: string[] = [
             scriptPath,
             '--input_dir', imageDir,
-            '--model', legacyModel,
+            '--model', modelRepoId,
             '--threshold', captionConfig.advanced.tagThreshold.toString(),
             '--max_tags', captionConfig.advanced.maxTags.toString(),
             '--order', captionConfig.advanced.tagOrdering

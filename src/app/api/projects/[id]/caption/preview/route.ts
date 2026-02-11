@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { spawn } from 'child_process';
 import { CaptionConfig } from '@/types/caption';
+import { getModelByKey } from '@/lib/wd-models';
 
 export async function POST(
     req: NextRequest,
@@ -48,19 +49,14 @@ export async function POST(
         const scriptsDir = path.join(process.cwd(), 'scripts', 'caption');
         const scriptPath = path.join(scriptsDir, 'tagger_wd14.py');
 
-        // Map new WD model keys to legacy script model names
-        const modelKeyMap: Record<string, string> = {
-            'wd-v1-4-convnext-tagger-v2': 'convnext',
-            'wd-v1-4-moat-tagger-v2': 'swinv2',
-            'wd-eva02-large-tagger-v3': 'convnext',  // fallback
-            'wd-v1-4-vit-tagger-v2': 'legacy'
-        };
-
-        const legacyModel = modelKeyMap[config.wdModel] || 'convnext';
+        // Use repo_id directly
+        const modelKey = config.wdModel || 'wd-v1-4-convnext-tagger-v2';
+        const modelDef = getModelByKey(modelKey as any);
+        const modelRepoId = modelDef?.repo_id || modelKey;
 
         const scriptArgs: string[] = [
             '--input_dir', previewDir,
-            '--model', legacyModel,
+            '--model', modelRepoId,
             '--threshold', config.advanced.tagThreshold.toString(),
             '--max_tags', config.advanced.maxTags.toString(),
             '--order', config.advanced.tagOrdering

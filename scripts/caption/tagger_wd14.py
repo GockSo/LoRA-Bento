@@ -34,42 +34,20 @@ DEFAULT_EXCLUDE = [
 ]
 
 # Model definitions
-MODELS = {
-    'legacy': {
-        'repo': 'SmilingWolf/wd-v1-4-vit-tagger-v2',
-        'type': 'vit'
-    },
-    'convnext': {
-        'repo': 'SmilingWolf/wd-v1-4-convnext-tagger-v2',
-        'type': 'convnext'
-    },
-    'swinv2': {
-        'repo': 'SmilingWolf/wd-v1-4-swinv2-tagger-v2',
-        'type': 'swin'
-    },
-    # Ensure we map common names to these
-    'wd-v1-4-convnext-tagger-v2': { 'repo': 'SmilingWolf/wd-v1-4-convnext-tagger-v2', 'type': 'convnext' },
-    'wd-v1-4-swinv2-tagger-v2': { 'repo': 'SmilingWolf/wd-v1-4-swinv2-tagger-v2', 'type': 'swin' },
-    'wd-v1-4-vit-tagger-v2': { 'repo': 'SmilingWolf/wd-v1-4-vit-tagger-v2', 'type': 'vit' }
+
+
+MODEL_FILES = {
+    'model': 'model.onnx',
+    'tags': 'selected_tags.csv'
 }
 
-def load_model(model_name: str):
-    """Downloads (if needed) and loads the ONNX model and tags CSV."""
-    config = MODELS.get(model_name)
-    if not config:
-        # Fallback for exact repo strings if not in map
-        if model_name.startswith('SmilingWolf/'):
-             config = {'repo': model_name, 'type': 'unknown'}
-        else:
-            print(f"Error: Unknown model variant: {model_name}", file=sys.stderr)
-            sys.exit(1)
-
-    repo_id = config['repo']
+def load_model(repo_id: str):
+    """Downloads (if needed) and loads the ONNX model and tags CSV from a repo_id."""
     print(f"Loading model from {repo_id}...", flush=True)
 
     try:
-        model_path = hf_hub_download(repo_id, "model.onnx")
-        tags_path = hf_hub_download(repo_id, "selected_tags.csv")
+        model_path = hf_hub_download(repo_id, MODEL_FILES['model'])
+        tags_path = hf_hub_download(repo_id, MODEL_FILES['tags'])
     except Exception as e:
         print(f"Error downloading model: {e}", file=sys.stderr)
         sys.exit(1)
