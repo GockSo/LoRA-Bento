@@ -21,7 +21,7 @@ export async function GET(
     try {
         const { id } = await params;
         const projectDir = path.join(process.cwd(), 'projects', id);
-        const trainDataDir = path.join(projectDir, 'train_data');
+        const trainDataDir = path.join(projectDir, 'train_data', "10_class");
 
         // Check if train_data/ exists
         try {

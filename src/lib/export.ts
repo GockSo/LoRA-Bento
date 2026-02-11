@@ -8,7 +8,7 @@ export async function createExportZip(projectId: string): Promise<Buffer> {
     if (!project) throw new Error('Project not found');
 
     const projectDir = path.join(process.cwd(), 'projects', projectId);
-    const trainDataDir = path.join(projectDir, 'train_data');
+    const trainDataDir = path.join(projectDir, 'train_data', "10_class");
 
     // Check if train_data/ exists
     try {
@@ -33,7 +33,7 @@ export async function createExportZip(projectId: string): Promise<Buffer> {
     for (const imageFile of imageFiles) {
         const filePath = path.join(trainDataDir, imageFile);
         const fileBuffer = await fs.readFile(filePath);
-        zip.addFile(`dataset/images/${imageFile}`, fileBuffer);
+        zip.addFile(`dataset/${imageFile}`, fileBuffer);
         imagesExported++;
     }
 
@@ -41,7 +41,7 @@ export async function createExportZip(projectId: string): Promise<Buffer> {
     for (const captionFile of captionFiles) {
         const filePath = path.join(trainDataDir, captionFile);
         const fileBuffer = await fs.readFile(filePath);
-        zip.addFile(`dataset/captions/${captionFile}`, fileBuffer);
+        zip.addFile(`dataset/${captionFile}`, fileBuffer);
         captionsExported++;
     }
 
