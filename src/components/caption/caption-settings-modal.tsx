@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { X, RefreshCcw, HelpCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CaptionConfig, DEFAULT_CAPTION_CONFIG } from '@/types/caption';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Props {
@@ -83,15 +83,15 @@ export function CaptionSettingsModal({ open, onOpenChange, config, onSave }: Pro
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
-                <DialogHeader className="p-6 pb-4 border-b">
+                <DialogHeader className="p-6 pb-4 border-b shrink-0">
                     <DialogTitle className="text-xl">WD Tagger Settings</DialogTitle>
                     <DialogDescription>
                         Configure parameters for Auto Tag All and Regenerate.
                     </DialogDescription>
                 </DialogHeader>
 
-                <ScrollArea className="flex-1 p-6">
-                    <div className="space-y-8">
+                <div className="flex-1 overflow-y-auto p-6 overscroll-contain">
+                    <div className="space-y-8 pb-4">
 
                         {/* Section A: Tagging Quality */}
                         <div className="space-y-4">
@@ -238,9 +238,9 @@ export function CaptionSettingsModal({ open, onOpenChange, config, onSave }: Pro
                         </div>
 
                     </div>
-                </ScrollArea>
+                </div>
 
-                <DialogFooter className="p-6 pt-4 border-t gap-2 sm:justify-between">
+                <DialogFooter className="p-6 pt-4 border-t gap-2 sm:justify-between shrink-0 bg-background">
                     <Button variant="ghost" onClick={handleReset} className="text-muted-foreground hover:text-foreground">
                         <RefreshCcw className="w-4 h-4 mr-2" />
                         Reset Defaults
