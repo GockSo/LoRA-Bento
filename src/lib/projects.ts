@@ -79,7 +79,15 @@ export async function getProjectStats(projectId: string): Promise<ProjectStats> 
         })(),
         augmented: await countFiles(path.join(projectDir, 'augmented')),
         processed: await countFiles(path.join(projectDir, 'resized')),
-        captions: await countTxt(path.join(projectDir, 'resized'))
+        captions: await countTxt(path.join(projectDir, 'resized')),
+        outputs: await (async () => {
+            try {
+                const outputsDir = path.join(projectDir, 'train_outputs');
+                const files = await fs.readdir(outputsDir);
+                // Filter out dotfiles/directories if needed, or just count
+                return files.filter(f => !f.startsWith('.')).length;
+            } catch { return 0; }
+        })()
     };
 }
 
@@ -168,7 +176,13 @@ export async function updateProjectStats(id: string) {
             cropped: croppedFiles.length,
             augmented: augmentedFiles.length,
             processed: resizedImages.length,
-            captions: captionFiles.length
+            captions: captionFiles.length,
+            outputs: await (async () => {
+                try {
+                    const files = await fs.readdir(path.join(projectDir, 'train_outputs'));
+                    return files.filter(f => !f.startsWith('.')).length;
+                } catch { return 0; }
+            })()
         }
     });
 }

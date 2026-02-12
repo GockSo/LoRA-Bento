@@ -7,9 +7,10 @@ import { Project } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription, Progress } from '@/components/ui/core';
 import { Button } from '@/components/ui/core';
 import { Input } from '@/components/ui/core';
-import { FolderOpen, FileText, Pencil, Trash2, Download, Loader2 } from 'lucide-react';
+import { FolderOpen, FileText, Pencil, Trash2, Download, Loader2, List } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { TrainOutputsModal } from '@/components/training/TrainOutputsModal';
 import {
     Dialog,
     DialogContent,
@@ -33,8 +34,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [trainingStatus, setTrainingStatus] = useState<any>(null);
+    const [showOutputs, setShowOutputs] = useState(false);
 
-    // Poll for training status
+    // Poll for training status and output count
     useEffect(() => {
         let isMounted = true;
         const fetchStatus = async () => {
@@ -122,6 +124,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
         }
     };
 
+    // Determine output count: prioritize real-time polling, fallback to static project stats
+    const outputCount = trainingStatus?.outputsCount !== undefined
+        ? trainingStatus.outputsCount
+        : (project.stats.outputs || 0);
+
     return (
         <>
             <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-300 group hover:-translate-y-1 bg-card/50 backdrop-blur-sm border-muted/60">
@@ -183,15 +190,33 @@ export function ProjectCard({ project }: ProjectCardProps) {
                         </div>
                     )}
                 </CardContent>
-                <CardFooter className="pt-2 pb-6 px-6">
-                    <Button asChild className="w-full transition-transform active:scale-[0.98]">
+                <CardFooter className="pt-2 pb-6 px-6 gap-2">
+                    <Button asChild className="flex-1 transition-transform active:scale-[0.98]">
                         <Link href={`/projects/${project.id}/raw`}>
                             <FolderOpen className="mr-2 h-4 w-4" />
                             {t('dashboard.context_open')}
                         </Link>
                     </Button>
+
+                    {outputCount > 0 && (
+                        <Button
+                            variant="secondary"
+                            className="flex-shrink-0 transition-transform active:scale-[0.98]"
+                            onClick={() => setShowOutputs(true)}
+                            title="View Outputs"
+                        >
+                            <List className="mr-2 h-4 w-4" />
+                            View Outputs ({outputCount})
+                        </Button>
+                    )}
                 </CardFooter>
             </Card>
+
+            <TrainOutputsModal
+                open={showOutputs}
+                onOpenChange={setShowOutputs}
+                projectId={project.id}
+            />
 
             <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
                 <DialogContent>

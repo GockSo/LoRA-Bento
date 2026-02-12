@@ -4,6 +4,7 @@ export interface ProjectStats {
     cropped: number;
     processed: number;
     captions: number;
+    outputs?: number;
 }
 
 export interface Project {
