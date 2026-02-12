@@ -104,7 +104,7 @@ class TrainingManager {
         // 1. Validate train_data directory exists and has images
         const projectDir = path.join(process.cwd(), 'projects', projectId);
         // CHANGED: Source is now train_data, not processed
-        const sourceDir = path.join(projectDir, 'train_data');
+        const sourceDir = path.join(projectDir, 'train_data', "10_class");
 
         try {
             await fs.access(sourceDir);
