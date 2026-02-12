@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Progress, Button } from '@/components/ui/core';
-import { AlertCircle, CheckCircle2, Terminal } from 'lucide-react';
+import { Terminal } from 'lucide-react';
+import { TrainOutputsModal } from './TrainOutputsModal';
 
 export interface TrainingStatus {
     runId: string | null;
@@ -20,11 +21,14 @@ export interface TrainingStatus {
 interface TrainingMonitorProps {
     status: TrainingStatus;
     onStop: () => void;
+    projectId: string;
 }
 
-export function TrainingMonitor({ status, onStop }: TrainingMonitorProps) {
+export function TrainingMonitor({ status, onStop, projectId }: TrainingMonitorProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
+    const [showOutputs, setShowOutputs] = useState(false);
+    const [outputCount, setOutputCount] = useState(0);
 
     // Auto-scroll to bottom of logs
     useEffect(() => {
@@ -33,7 +37,40 @@ export function TrainingMonitor({ status, onStop }: TrainingMonitorProps) {
         }
     }, [status.lastLogs, autoScroll]);
 
+    // Poll for outputs count
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+
+        const checkOutputs = async () => {
+            try {
+                const res = await fetch(`/api/projects/${projectId}/train/outputs?count=true`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.count !== undefined) {
+                        setOutputCount(data.count);
+                    }
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        };
+
+        // Initial check
+        checkOutputs();
+
+        // Poll if running OR if we have 0 outputs (to catch first file)
+        // If completed and we have outputs, no need to poll aggressively, but maybe once in a while?
+        // Let's poll while running, and verify once on mount.
+        if (status.status === 'running' || outputCount === 0) {
+            interval = setInterval(checkOutputs, 5000);
+        }
+
+        return () => clearInterval(interval);
+    }, [projectId, status.status, outputCount]);
+
     const isRunning = status.status === 'running';
+    // Show outputs if we have any files, regardless of status (even if running or failed)
+    const hasOutputs = outputCount > 0;
 
     return (
         <Card className="h-full flex flex-col">
@@ -41,11 +78,18 @@ export function TrainingMonitor({ status, onStop }: TrainingMonitorProps) {
                 <CardTitle className="text-sm font-medium">
                     Training Progress: {status.status.toUpperCase()}
                 </CardTitle>
-                {isRunning && (
-                    <Button variant="destructive" size="sm" onClick={onStop}>
-                        Stop
-                    </Button>
-                )}
+                <div className="flex gap-2">
+                    {hasOutputs && (
+                        <Button variant="outline" size="sm" onClick={() => setShowOutputs(true)}>
+                            View Outputs ({outputCount})
+                        </Button>
+                    )}
+                    {isRunning && (
+                        <Button variant="destructive" size="sm" onClick={onStop}>
+                            Stop
+                        </Button>
+                    )}
+                </div>
             </CardHeader>
             <CardContent className="space-y-4 flex-1 flex flex-col min-h-0">
                 <div className="space-y-2">
@@ -90,6 +134,12 @@ export function TrainingMonitor({ status, onStop }: TrainingMonitorProps) {
                     </div>
                 </div>
             </CardContent>
+
+            <TrainOutputsModal
+                open={showOutputs}
+                onOpenChange={setShowOutputs}
+                projectId={projectId}
+            />
         </Card>
     );
 }

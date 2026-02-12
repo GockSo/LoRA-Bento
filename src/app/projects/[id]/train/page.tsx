@@ -252,7 +252,7 @@ export default function TrainPage({ params }: { params: Promise<{ id: string }> 
                         {/* Right: Monitor */}
                         <div className="h-full min-h-[400px]">
                             {status ? (
-                                <TrainingMonitor status={status} onStop={handleStop} />
+                                <TrainingMonitor status={status} onStop={handleStop} projectId={id} />
                             ) : (
                                 <Card className="h-full flex items-center justify-center text-muted-foreground">
                                     <CardContent>
