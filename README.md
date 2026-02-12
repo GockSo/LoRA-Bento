@@ -40,7 +40,7 @@ npm run dev
 Open:
 http://localhost:3000
 
-Workflow (Recommended)
+## Workflow (Recommended)
 Import
 
 Create a project and add your raw images.
