@@ -296,6 +296,8 @@
         }
     },
     "update": {
+        "uptodate": "Up to date",
+        "no_updates": "No updates",
         "available": "Update available",
         "version_ready": "{{version}} ready",
         "update_now": "Update Now",

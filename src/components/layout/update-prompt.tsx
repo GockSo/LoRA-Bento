@@ -51,51 +51,67 @@ export function UpdatePrompt() {
         return () => clearTimeout(timer);
     }, []);
 
-    if (!updateInfo || !showPrompt) return null;
+    // Requirements:
+    // 1. Always visible if we have updateInfo (git/repo info)
+    // 2. If !updateAvailable, show "Up to date" and disabled button.
+
+    // We only return null if we haven't fetched info yet.
+    if (!updateInfo) return null;
+
+    const { updateAvailable, latestTag, currentTag, currentHash, branch } = updateInfo;
+
+    // Determine display version
+    const displayVersion = updateAvailable
+        ? (latestTag || 'New version')
+        : (currentTag || `${branch || 'HEAD'} (${currentHash?.substring(0, 7)})`);
 
     return (
         <>
-            <AnimatePresence>
-                {showPrompt && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                        className="mx-3 mb-3 p-3 rounded-lg bg-primary/10 border border-primary/20 shadow-sm relative overflow-hidden group"
-                    >
-                        {/* Cute background accent */}
-                        <div className="absolute -right-4 -top-4 w-12 h-12 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-colors" />
-
-                        <div className="flex items-start justify-between gap-2 relative z-10">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-primary font-medium text-xs">
-                                    <Download className="h-3 w-3" />
-                                    <span>{t('update.available')}</span>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground font-mono">
-                                    {updateInfo.latestTag ? t('update.version_ready', { version: updateInfo.latestTag }) : t('update.version_ready', { version: 'New version' })}
-                                </p>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5 -mt-1 -mr-1 text-muted-foreground hover:text-foreground"
-                                onClick={() => setShowPrompt(false)}
-                            >
-                                <X className="h-3 w-3" />
-                            </Button>
-                        </div>
-
-                        <Button
-                            size="sm"
-                            className="w-full mt-2 h-7 text-xs shadow-sm"
-                            onClick={() => setShowModal(true)}
-                        >
-                            {t('update.update_now')}
-                        </Button>
-                    </motion.div>
+            <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className={cn(
+                    "mx-3 mb-3 p-3 rounded-lg border shadow-sm relative overflow-hidden group transition-colors",
+                    updateAvailable
+                        ? "bg-primary/10 border-primary/20"
+                        : "bg-muted/30 border-border/50 opacity-80 hover:opacity-100"
                 )}
-            </AnimatePresence>
+            >
+                {/* Background accent only for updates */}
+                {updateAvailable && (
+                    <div className="absolute -right-4 -top-4 w-12 h-12 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-colors" />
+                )}
+
+                <div className="flex items-start justify-between gap-2 relative z-10">
+                    <div className="flex flex-col gap-1">
+                        <div className={cn(
+                            "flex items-center gap-2 font-medium text-xs",
+                            updateAvailable ? "text-primary" : "text-muted-foreground"
+                        )}>
+                            {updateAvailable ? <Download className="h-3 w-3" /> : <div className="h-3 w-3 rounded-full bg-green-500/50" />}
+                            <span>{updateAvailable ? t('update.available') : t('update.uptodate')}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]" title={displayVersion}>
+                            {updateAvailable ? t('update.version_ready', { version: displayVersion }) : displayVersion}
+                        </p>
+                    </div>
+                    {/* Hide close button if we want it always visible, or leave it to hide temporarily? 
+                        User said: "The Auto Update section/button must not disappear". 
+                        So removing the close button is safer. */}
+                </div>
+
+                <Button
+                    size="sm"
+                    disabled={!updateAvailable}
+                    className={cn(
+                        "w-full mt-2 h-7 text-xs shadow-sm",
+                        !updateAvailable && "opacity-50 cursor-not-allowed"
+                    )}
+                    onClick={() => setShowModal(true)}
+                >
+                    {updateAvailable ? t('update.update_now') : t('update.no_updates')}
+                </Button>
+            </motion.div>
 
             <UpdateModal
                 open={showModal}
@@ -105,3 +121,4 @@ export function UpdatePrompt() {
         </>
     );
 }
+
