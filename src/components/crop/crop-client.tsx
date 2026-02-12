@@ -359,7 +359,7 @@ export function CropClient({ projectId, images, project, initialStats }: CropCli
                                     ref={imgRef}
                                     src={selectedImage.rawUrl} // Always show raw for editing
                                     alt="Crop target"
-                                    className="max-h-[600px] object-contain"
+                                    className="max-w-full max-h-[600px] w-auto h-auto"
                                     onLoad={onImageLoad}
                                 />
                             </ReactCrop>
