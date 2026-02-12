@@ -20,6 +20,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Validate repo_id format (must be owner/repo)
+        if (!repo_id.includes('/') || repo_id === 'legacy') {
+            console.error(`Blocked invalid repo_id: ${repo_id}`);
+            return NextResponse.json(
+                { error: 'Invalid repo_id. Must be in format "owner/repo"' },
+                { status: 400 }
+            );
+        }
+
         // Create job ID
         const job_id = crypto.randomUUID();
 

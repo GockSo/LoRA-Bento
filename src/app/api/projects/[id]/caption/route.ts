@@ -31,9 +31,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const body = await req.json();
 
         // Support both legacy format (model, triggerWord) and new format (full config)
-        const config = body.mode ? body : {
+        // Support both legacy format (model, triggerWord) and new format (full config)
+        // If mode is missing but wdModel is present, infer mode='tags'
+        const hasNewConfig = body.mode || body.wdModel;
+
+        const config = hasNewConfig ? {
+            ...body,
+            mode: body.mode || 'tags'
+        } : {
             mode: body.model === 'blip' ? 'caption' : 'tags',
-            taggerModel: 'legacy',
+            taggerModel: 'wd-v1-4-convnext-tagger-v2', // CHANGED: Default to valid model instead of 'legacy'
             captionerModel: body.model === 'blip' ? 'blip' : 'blip2',
             triggerWord: body.triggerWord || '',
             advanced: {
@@ -112,9 +119,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             scriptPath = path.join(scriptsDir, 'tagger_wd14.py');
 
             // Use the full repo_id provided by the frontend
-            const modelKey = config.wdModel || config.taggerModel || 'wd-v1-4-convnext-tagger-v2';
+            let modelKey = config.wdModel || config.taggerModel || 'wd-v1-4-convnext-tagger-v2';
+
+            // SANITIZATION: Implement strict migration for 'legacy' value
+            if (modelKey === 'legacy') {
+                console.warn(`[Caption ${id}] Migrating 'legacy' model key to default.`);
+                modelKey = 'wd-v1-4-convnext-tagger-v2';
+            }
+
             const modelDef = getModelByKey(modelKey as any);
             const modelRepoId = modelDef?.repo_id || modelKey;
+
+            console.log(`[Caption ${id}] WD Tagger Init: Key=${modelKey}, Repo=${modelRepoId}`);
 
             scriptArgs.push(
                 '--model', modelRepoId,

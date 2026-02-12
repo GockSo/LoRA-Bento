@@ -305,6 +305,7 @@ export default function CaptionClient({ params }: { params: Promise<{ id: string
                 // Ensure taggingMode is set (default to append if undefined)
                 body: JSON.stringify({
                     ...config,
+                    mode: 'tags', // Explicitly set mode to avoid legacy fallback
                     taggingMode: config.taggingMode || 'append'
                 })
             });
