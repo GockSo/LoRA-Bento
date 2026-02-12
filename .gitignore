@@ -45,3 +45,4 @@ train_script/*
 
 data/*
 models/*
+.venv

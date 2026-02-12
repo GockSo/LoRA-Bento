@@ -66,19 +66,19 @@ export async function isInsideWorkTree(): Promise<boolean> {
     }
 }
 
+// gitlib.ts (replace ONLY the isDirty() function with this)
+
 export async function isDirty(): Promise<boolean> {
     try {
-        await runGit(['stash']);
-
-        await runGit(['clean', '-fdx']);
-
-        // Only check for modified/deleted tracked files, ignore untracked files
-        const { stdout } = await runGit([
-            'status',
-            '--porcelain',
-            '--untracked-files=no',
+        // IMPORTANT:
+        // This must be READ-ONLY. Do NOT stash/clean/reset here.
+        // We only detect changes in tracked files (and staged changes).
+        const [{ stdout: wt }, { stdout: staged }] = await Promise.all([
+            runGit(['status', '--porcelain', '--untracked-files=no']),
+            runGit(['diff', '--cached', '--name-only']),
         ]);
-        return stdout.length > 0;
+
+        return wt.trim().length > 0 || staged.trim().length > 0;
     } catch {
         return true; // Assume dirty on error for safety
     }
@@ -209,7 +209,6 @@ export async function getBehindCount(branch: string): Promise<number> {
  * - force checkout to avoid "stale working tree" weirdness
  */
 export async function checkoutTag(tag: string) {
-
     // Make sure the tag exists locally even if local tags are stale
     await runGit(['fetch', 'origin', 'tag', tag, '--force']);
     // Detached HEAD at tag (expected behavior for tag checkout)
