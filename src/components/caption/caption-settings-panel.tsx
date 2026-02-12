@@ -46,7 +46,7 @@ export function CaptionSettingsPanel({ settings, onChange }: CaptionSettingsPane
                 <Input
                     type="number"
                     value={settings.maxTags}
-                    onChange={(e) => onChange({ maxTags: parseInt(e.target.value) || 60 })}
+                    onChange={(e) => onChange({ maxTags: parseInt(e.target.value) || 12 })}
                     min={10}
                     max={200}
                     className="w-full"
