@@ -227,7 +227,7 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 flex-shrink-0">
+            {/* <div className="flex gap-2 flex-shrink-0">
                 <Button
                     variant="outline"
                     onClick={onRevert}
@@ -246,7 +246,7 @@ export function TagEditorPanel({ image, onSave, onRegenerate, onRevert }: TagEdi
                     <Sparkles className="w-4 h-4 mr-2" />
                     {isRegenerating ? 'Regenerating...' : t('caption.regenerate')}
                 </Button>
-            </div>
+            </div> */}
         </div>
     );
 }
