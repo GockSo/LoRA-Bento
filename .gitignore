@@ -46,3 +46,4 @@ train_script/*
 data/*
 models/*
 .venv
+data/app_config.json

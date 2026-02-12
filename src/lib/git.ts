@@ -12,6 +12,17 @@ export async function runGit(
     cwd: string = REPO_ROOT
 ): Promise<GitResult> {
     return new Promise((resolve, reject) => {
+        // FAILSAFE: Explicitly block destructive commands
+        if (args.includes('clean') || args.includes('stash') || args.includes('reset')) {
+            // Allow 'reset' only if it's not hard/mixed (e.g. soft is okay? actually user said no reset at all in isDirty)
+            // But let's be strict as requested: "Remove any Git commands that modify the working tree"
+            // Exception: 'checkout' is used for tags, which modifies working tree but is required for update.
+            // We specifically want to block "clean -fdx" and "stash".
+            if (args.includes('clean') || args.includes('stash')) {
+                return reject(new Error(`SAFEGUARD: Destructive git command '${args[0]}' is BLOCKED.`));
+            }
+        }
+
         const child = spawn('git', args, {
             cwd,
             windowsHide: true,
@@ -66,19 +77,16 @@ export async function isInsideWorkTree(): Promise<boolean> {
     }
 }
 
-// gitlib.ts (replace ONLY the isDirty() function with this)
-
 export async function isDirty(): Promise<boolean> {
     try {
-        // IMPORTANT:
-        // This must be READ-ONLY. Do NOT stash/clean/reset here.
-        // We only detect changes in tracked files (and staged changes).
-        const [{ stdout: wt }, { stdout: staged }] = await Promise.all([
-            runGit(['status', '--porcelain', '--untracked-files=no']),
-            runGit(['diff', '--cached', '--name-only']),
+        // [READ-ONLY] Only check for modified/deleted tracked files, ignore untracked files
+        // This command does NOT modify any files.
+        const { stdout } = await runGit([
+            'status',
+            '--porcelain',
+            '--untracked-files=no',
         ]);
-
-        return wt.trim().length > 0 || staged.trim().length > 0;
+        return stdout.length > 0;
     } catch {
         return true; // Assume dirty on error for safety
     }

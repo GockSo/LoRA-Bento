@@ -88,6 +88,13 @@ export async function POST(req: NextRequest) {
 
 function runCommand(command: string, args: string[], send: (msg: string) => void): Promise<void> {
     return new Promise((resolve, reject) => {
+        // FAILSAFE: Explicitly block destructive commands
+        if (args.includes('clean') || args.includes('stash') || args.includes('reset')) {
+            if (args.includes('clean') || args.includes('stash')) {
+                return reject(new Error(`SAFEGUARD: Destructive git command '${args[0]}' is BLOCKED.`));
+            }
+        }
+
         const proc = spawn(command, args, { cwd: process.cwd() });
 
         proc.stdout.on('data', (data) => send(data.toString().trim()));
