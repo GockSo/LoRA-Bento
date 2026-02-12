@@ -33,6 +33,7 @@ Run locally, private, and fast.
 2. Install dependencies:
    ```bash
    npm install
+   pip install -r requirements.txt
 Run the dev server:
 
 npm run dev
