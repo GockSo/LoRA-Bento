@@ -21,7 +21,7 @@ export async function POST(
             wdModel: 'SmilingWolf/wd-v1-4-convnext-tagger-v2',
             advanced: {
                 tagThreshold: 0.35,
-                maxTags: 60,
+                maxTags: 12,
                 excludeTags: '',
                 normalizeTags: true,
                 tagOrdering: 'confidence',

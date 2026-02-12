@@ -31,7 +31,9 @@ Run locally, private, and fast.
 
 1. Clone the repository
 2. Install dependencies:
+https://huggingface.co/docs/huggingface_hub/quick-start
    ```bash
+   hf auth login
    npm install
    pip install -r requirements.txt
 Run the dev server:

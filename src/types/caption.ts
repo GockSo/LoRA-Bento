@@ -32,7 +32,7 @@ export const DEFAULT_CAPTION_CONFIG: CaptionConfig = {
     advanced: {
         // WD Tagger
         tagThreshold: 0.35,
-        maxTags: 60,
+        maxTags: 12, // User requested 12 as new default
         excludeTags: '',
         normalizeTags: true,
         tagOrdering: 'confidence',

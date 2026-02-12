@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             triggerWord: body.triggerWord || '',
             advanced: {
                 tagThreshold: 0.35,
-                maxTags: 40,
+                maxTags: 12,
                 removeJunkTags: true,
                 customBlacklist: '',
                 customWhitelist: '',
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 '--model', modelRepoId,
                 '--threshold', (config.advanced.tagThreshold || 0.35).toString(),
                 '--character_threshold', '0.7',
-                '--max_tags', (config.advanced.maxTags || 50).toString(),
+                '--max_tags', (config.advanced.maxTags || 12).toString(),
                 '--keep_tokens', (config.advanced.keepFirstTokens || 1).toString()
             );
 
