@@ -21,7 +21,7 @@ Run locally, private, and fast.
 ### Prerequisites
 
 - Node.js 18+
-- Python 3.10+ (for captioning and some training workflows)
+- Python 3.11+ (for captioning and some training workflows)
 - Git (optional, for Auto Update / Local Trainer Setup)
 
 > Captioning and training scripts may require additional Python dependencies (Torch, etc.)
