@@ -1,60 +1,91 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import fs from 'fs/promises';
+import { safeDelete } from '@/lib/files';
+import { getManifest, saveManifest } from '@/lib/manifest';
 import { getProject, updateProjectStats } from '@/lib/projects';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     try {
-        const { id } = await params;
-        const projectId = id;
         const body = await req.json();
-        const { files } = body; // Array of displayNames or IDs? Let's use displayNames as UI uses them often, or IDs.
-        // Implementation plan said "files: string[]". Let's assume displayNames for consistency with exclude, 
-        // OR better: IDs if we have them. Raw page has IDs.
-        // Let's support IDs for robustness.
+        const { file } = body;
+        // file is the RAW filename, e.g. "IMG_001.jpg"
 
-        if (!files || !Array.isArray(files)) {
-            return NextResponse.json({ error: 'Invalid files array' }, { status: 400 });
-        }
+        if (!file) return NextResponse.json({ error: 'File required' }, { status: 400 });
 
-        const project = await getProject(projectId);
-        if (!project) {
-            return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-        }
+        const projectDir = path.join(process.cwd(), 'projects', id);
+        const project = await getProject(id);
+        if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-        const { getManifest, saveManifest } = await import('@/lib/manifest');
-        const manifest = await getManifest(projectId);
-        const { safeDelete } = await import('@/lib/files');
-        const projectDir = path.join(process.cwd(), 'projects', projectId);
+        const manifest = await getManifest(id);
+        const itemsToRemove: string[] = []; // item IDs
 
-        const deletedIds = new Set<string>();
-        let successCount = 0;
+        // 1. Find all items derived from this raw file (groupKey)
+        // This includes the RAW item itself, and any crops/augmented versions.
+        const relatedItems = manifest.items.filter(item =>
+            item.groupKey === file || item.displayName === file
+        );
 
-        // Map displayNames to IDs if needed, or just look up
-        // Let's assume input is list of 'displayName' (e.g. "1.png") because frontend logic usually iterates names.
-        // Actually items have IDs. Let's look up by displayName.
-
-        for (const fileName of files) {
-            const item = manifest.items.find(i => i.displayName === fileName && i.stage === 'raw');
-            if (item) {
-                try {
-                    await safeDelete(projectDir, item.path);
-                    deletedIds.add(item.id);
-                    successCount++;
-                } catch (e) {
-                    console.error(`Failed to delete ${fileName}`, e);
-                }
+        // 2. Delete files from disk and collect IDs
+        for (const item of relatedItems) {
+            try {
+                // item.path is absolute
+                // Force delete (true) to bypass raw folder safety guard
+                await safeDelete(projectDir, item.path, true);
+                itemsToRemove.push(item.id);
+            } catch (e) {
+                console.error(`Failed to delete ${item.displayName}`, e);
             }
         }
 
-        // Remove from manifest
-        if (deletedIds.size > 0) {
-            manifest.items = manifest.items.filter(i => !deletedIds.has(i.id));
-            await saveManifest(projectId, manifest);
-            await updateProjectStats(projectId);
+        // Also check for sidecar text files (.txt captions) if they exist for the raw file
+        // Usually captions are associated with specific manifest items, but sometimes we have floating .txt
+        if (relatedItems.length > 0) {
+            const rawItem = relatedItems.find(i => i.stage === 'raw');
+            if (rawItem && rawItem.path) {
+                const captionPath = rawItem.path.replace(/\.[^/.]+$/, "") + ".txt";
+                try {
+                    // Force delete sidecar if it exists in restricted folders
+                    await safeDelete(projectDir, captionPath, true);
+                } catch { }
+            }
         }
 
-        return NextResponse.json({ deleted: successCount });
+        // 3. Update Manifest
+        if (itemsToRemove.length > 0) {
+            manifest.items = manifest.items.filter(item => !itemsToRemove.includes(item.id));
+
+            // CLEANUP: specific check for duplicates.
+            // If we deleted a file that was part of a duplicate group, the remaining file(s) might now be unique.
+            // We should clear the isDuplicate flag if only 1 item remains with that hash.
+            const hashCounts = new Map<string, number>();
+            manifest.items.forEach(i => {
+                if (i.hash) {
+                    hashCounts.set(i.hash, (hashCounts.get(i.hash) || 0) + 1);
+                }
+            });
+
+            manifest.items.forEach(i => {
+                if (i.hash && i.flags?.isDuplicate) {
+                    const count = hashCounts.get(i.hash) || 0;
+                    if (count < 2) {
+                        // No longer a duplicate
+                        i.flags.isDuplicate = false;
+                        // Clear groupId too?
+                        // i.groupId = undefined; // Optional, might be used for sorting
+                    }
+                }
+            });
+
+            await saveManifest(id, manifest);
+        }
+
+        // 4. Update Stats
+        await updateProjectStats(id);
+
+        return NextResponse.json({ success: true, deletedCount: itemsToRemove.length });
+
     } catch (error) {
         console.error('Delete error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

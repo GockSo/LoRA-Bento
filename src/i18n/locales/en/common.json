@@ -48,7 +48,11 @@
         "uploading": "Uploading...",
         "drop_images": "Drop images here",
         "drop_desc": "or click to browse from your computer",
-        "select_files": "Select Files"
+        "select_files": "Select Files",
+        "delete_confirm_title": "Delete this image?",
+        "delete_confirm_desc": "This will permanently remove the file from this project. This cannot be undone.",
+        "delete_success": "Image deleted.",
+        "delete_failed": "Failed to delete image."
     },
     "crop": {
         "title": "Crop Images",

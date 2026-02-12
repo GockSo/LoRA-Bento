@@ -98,22 +98,7 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
         }
     };
 
-    const toggleExclude = async (file: string, currentlyExcluded: boolean) => {
-        // Optimistic
-        setItems(prev => prev.map(i => i.displayName === file ? { ...i, excluded: !currentlyExcluded } : i));
 
-        try {
-            await fetch(`/api/projects/${projectId}/images/exclude`, {
-                method: 'POST',
-                body: JSON.stringify({ file, excluded: !currentlyExcluded })
-            });
-            await fetchManifest(); // Refresh
-            router.refresh();
-        } catch (e) {
-            console.error('Failed to toggle exclude', e);
-            fetchManifest(); // Revert
-        }
-    };
 
     // Determine if we should show "Run QA" button
     // Show if items exist AND (no QA flags populated OR user explicitly wants to re-run)
@@ -170,56 +155,12 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
                 {items.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 pb-20">
                         {items.sort((a, b) => (a.groupId || 0) - (b.groupId || 0)).map((img) => (
-                            <Card key={img.id} className={`overflow-hidden group relative aspect-[1/1] border-2 transition-all ${img.excluded ? 'opacity-50 border-destructive/20' : 'border-transparent hover:border-primary/50'}`}>
-                                {/* Image */}
-                                <img
-                                    src={img.src}
-                                    alt={img.displayName}
-                                    className={`w-full h-full object-cover transition-transform group-hover:scale-105 ${img.excluded ? 'grayscale' : ''}`}
-                                    loading="lazy"
-                                />
-
-                                {/* Flags */}
-                                <div className="absolute top-2 left-2 flex flex-col gap-1">
-                                    {img.flags?.isDuplicate && (
-                                        <span className="bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center">
-                                            <Layers className="w-3 h-3 mr-1" /> {t('raw.duplicate_short')}
-                                        </span>
-                                    )}
-                                    {img.flags?.isBlurry && (
-                                        <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center">
-                                            <Zap className="w-3 h-3 mr-1" /> {t('raw.blur_short')}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Filename & ID Overlay */}
-                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] p-1 flex justify-between items-center px-2 backdrop-blur-sm">
-                                    <span className="truncate flex-1 font-mono">{img.displayName}</span>
-                                    {img.originalName && (
-                                        <span className="text-[9px] text-white/50 truncate max-w-[60px] text-right ml-2" title={img.originalName}>
-                                            {img.originalName}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Hover Overlay Actions */}
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Button
-                                        size="sm"
-                                        variant={img.excluded ? "secondary" : "destructive"}
-                                        className="h-8 text-xs"
-                                        onClick={() => toggleExclude(img.displayName, !!img.excluded)}
-                                    >
-                                        {img.excluded ? (
-                                            <> <Eye className="w-3 h-3 mr-1" /> {t('raw.restore')} </>
-                                        ) : (
-                                            <> <EyeOff className="w-3 h-3 mr-1" /> {t('raw.exclude')} </>
-                                        )}
-                                    </Button>
-                                    {/* Quick Delete */}
-                                </div>
-                            </Card>
+                            <ImageCard
+                                key={img.id}
+                                img={img}
+                                projectId={projectId}
+                                onDelete={fetchManifest}
+                            />
                         ))}
                     </div>
                 ) : (
@@ -229,5 +170,117 @@ export default function ImportPage({ params }: { params: Promise<{ id: string }>
                 )}
             </div>
         </div>
+    );
+}
+
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Trash2 } from 'lucide-react';
+
+function ImageCard({ img, projectId, onDelete }: { img: any, projectId: string, onDelete: () => void }) {
+    const { t } = useTranslation('common');
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/projects/${projectId}/images/delete`, {
+                method: 'POST',
+                body: JSON.stringify({ file: img.displayName }) // Using displayName as the raw filename key
+            });
+
+            if (res.ok) {
+                toast.success(t('raw.delete_success'));
+                onDelete();
+            } else {
+                toast.error(t('raw.delete_failed'));
+            }
+        } catch (e) {
+            console.error('Failed to delete image', e);
+            toast.error(t('raw.delete_failed'));
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <Card className={`overflow-hidden group relative aspect-[1/1] border-2 transition-all border-transparent hover:border-primary/50`}>
+            {/* Image */}
+            <img
+                src={img.src}
+                alt={img.displayName}
+                className={`w-full h-full object-cover transition-transform group-hover:scale-105`}
+                loading="lazy"
+            />
+
+            {/* Flags */}
+            <div className="absolute top-2 left-2 flex flex-col gap-1">
+                {img.flags?.isDuplicate && (
+                    <span className="bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center">
+                        <Layers className="w-3 h-3 mr-1" /> {t('raw.duplicate_short')}
+                    </span>
+                )}
+                {img.flags?.isBlurry && (
+                    <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center">
+                        <Zap className="w-3 h-3 mr-1" /> {t('raw.blur_short')}
+                    </span>
+                )}
+            </div>
+
+            {/* Filename & ID Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] p-1 flex justify-between items-center px-2 backdrop-blur-sm">
+                <span className="truncate flex-1 font-mono">{img.displayName}</span>
+                {img.originalName && (
+                    <span className="text-[9px] text-white/50 truncate max-w-[60px] text-right ml-2" title={img.originalName}>
+                        {img.originalName}
+                    </span>
+                )}
+            </div>
+
+            {/* Hover Overlay Actions */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8 text-xs"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <RotateCw className="w-3 h-3 animate-spin mr-1" />
+                            ) : (
+                                <Trash2 className="w-3 h-3 mr-1" />
+                            )}
+                            {t('actions.delete')}
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>{t('raw.delete_confirm_title')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                {t('raw.delete_confirm_desc')}
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>{t('actions.cancel')}</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                {t('actions.delete')}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
+        </Card>
     );
 }
